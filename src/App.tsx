@@ -150,7 +150,7 @@ export default function App() {
     }
   }, [])
 
-  const logHead = useRef<string | undefined>()
+  const logHead = useRef<string | undefined>(undefined)
 
   const pushLog = (partial: Omit<LogEntry, 'id' | 'time'>) => {
     const id = uid('l')
