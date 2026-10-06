@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -31,6 +34,16 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: '/workbench/'
+      - name: Verify production bundle
+        run: |
+          test -f dist/index.html
+          if grep -q 'src/main.tsx' dist/index.html; then
+            echo 'dist/index.html still points at Vite source; build did not run'
+            cat dist/index.html
+            exit 1
+          fi
+          echo '--- dist/index.html ---'
+          cat dist/index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

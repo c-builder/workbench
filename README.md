@@ -29,4 +29,8 @@ npm run dev
 
 每次把代码推送到 `main`（或在 Actions 里手动 Run workflow），GitHub Actions 会在线构建，并通过 **Deploy to GitHub Pages** 工作流发布。本地不生成、不提交 `dist`。
 
-首次使用前在 **Settings → Pages → Build and deployment** 把 **Source** 设为 **GitHub Actions**（与 [award-simple](https://github.com/c-builder/award-simple) 相同）。之后每次提交都会自动更新 [在线 Demo](https://c-builder.github.io/workbench/)。
+首次使用前必须在 **Settings → Pages → Build and deployment** 把 **Source** 设为 **GitHub Actions**（与 [award-simple](https://github.com/c-builder/award-simple) 相同）。
+
+不要选 **Deploy from a branch**（尤其不要选 `main`）。那种方式会用 Jekyll 直接发布仓库源码，页面会白屏并在控制台出现 `GET /src/main.tsx 404`。
+
+改好 Source 后，到 [Actions](https://github.com/c-builder/workbench/actions) 打开 **Deploy to GitHub Pages**，点 **Re-run all jobs**。成功后访问 [在线 Demo](https://c-builder.github.io/workbench/)，并强制刷新（Ctrl/Cmd + Shift + R）。
