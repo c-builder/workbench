@@ -738,12 +738,13 @@ export default function App() {
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0]
   const currentSessionTitle = sessionList.find((s) => s.id === sessionId)?.title || '当前任务'
+  const sessionArtifacts = useMemo(
+    () => artifacts.filter((a) => a.session === currentSessionTitle),
+    [artifacts, currentSessionTitle],
+  )
   const filteredArtifacts = useMemo(
-    () =>
-      artifacts.filter(
-        (a) => a.session === currentSessionTitle && (artifactSource === 'all' || a.source === artifactSource),
-      ),
-    [artifacts, artifactSource, currentSessionTitle],
+    () => sessionArtifacts.filter((a) => artifactSource === 'all' || a.source === artifactSource),
+    [sessionArtifacts, artifactSource],
   )
   const file = filteredArtifacts.find((a) => a.id === fileId) || filteredArtifacts[0]
 
@@ -1176,7 +1177,7 @@ export default function App() {
               [
                 ['flow', '流程活动', mineAll.length],
                 ['app', '应用', tabs.length],
-                ['files', '产物与文件', artifacts.length],
+                ['files', '产物与文件', sessionArtifacts.length],
               ] as const
             ).map(([id, label, count]) => (
               <button
