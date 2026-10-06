@@ -30,12 +30,55 @@ import { downloadArtifact, execLabel, NodeStrip, nowStamp, sourceLabel, typeLabe
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
-const AGENT_MODES = [
-  { id: 'auto', label: '自动', tip: '按任务自动选择节奏' },
-  { id: 'fast', label: '快速', tip: '少确认，优先推进' },
-  { id: 'balanced', label: '均衡', tip: '速度与确认平衡' },
-  { id: 'careful', label: '优选', tip: '关键步骤多确认' },
+const MODELS = [
+  { id: 'hy4', name: 'Hy4 preview', brand: 'hy', free: true, cost: '0.00x' },
+  { id: 'hy3', name: 'Hy3', brand: 'hy', free: true, cost: '0.00x' },
+  { id: 'ds-flash', name: 'Deepseek-V4.1-Flash', brand: 'deepseek', free: true, cost: '0.00x' },
+  { id: 'gpt-astra', name: 'GPT-6-Astra', brand: 'gpt', free: false, cost: '6.67x' },
+  { id: 'gpt-61-sol', name: 'GPT-6.1-Sol', brand: 'gpt', free: false, cost: '1.33x' },
+  { id: 'gpt-sol', name: 'GPT-6-Sol', brand: 'gpt', free: false, cost: '1.33x' },
+  { id: 'gpt-luna', name: 'GPT-6-Luna', brand: 'gpt', free: false, cost: '0.07x' },
+  { id: 'gpt56-sol', name: 'GPT-5.6-Sol', brand: 'gpt', free: false, cost: '3.47x' },
+  { id: 'gpt56-terra', name: 'GPT-5.6-Terra', brand: 'gpt', free: false, cost: '1.39x' },
+  { id: 'gpt56-luna', name: 'GPT-5.6-Luna', brand: 'gpt', free: false, cost: '0.14x' },
 ] as const
+
+function ModelBrand({ brand }: { brand: (typeof MODELS)[number]['brand'] }) {
+  if (brand === 'deepseek') {
+    return (
+      <span className="model-brand deepseek" aria-hidden>
+        <svg viewBox="0 0 24 24" width="14" height="14">
+          <path
+            fill="currentColor"
+            d="M12 3c-2.8 1.6-4.6 4.2-4.6 7.2 0 2.2 1 4.2 2.6 5.6-.2.6-.4 1.4-.4 2.2 0 .8.3 1.5.8 2-.9-.2-1.7-.7-2.3-1.4C6.4 17 5.5 14.6 5.5 12 5.5 7.4 8.6 3.6 12 2.2c3.4 1.4 6.5 5.2 6.5 9.8 0 2.6-.9 5-2.6 6.6-.6.7-1.4 1.2-2.3 1.4.5-.5.8-1.2.8-2 0-.8-.2-1.6-.4-2.2 1.6-1.4 2.6-3.4 2.6-5.6C16.6 7.2 14.8 4.6 12 3Z"
+          />
+        </svg>
+      </span>
+    )
+  }
+  if (brand === 'hy') {
+    return (
+      <span className="model-brand hy" aria-hidden>
+        <svg viewBox="0 0 24 24" width="14" height="14">
+          <path
+            fill="currentColor"
+            d="M12 3.2c2.4 2.1 4 5.1 4 8.3 0 1.9-.6 3.7-1.6 5.2 1.3-.4 2.4-1.3 3.1-2.5.9-1.5 1.3-3.3 1.3-5.1C18.8 5.5 15.8 2.4 12 1.5 8.2 2.4 5.2 5.5 5.2 9.1c0 1.8.4 3.6 1.3 5.1.7 1.2 1.8 2.1 3.1 2.5-1-1.5-1.6-3.3-1.6-5.2 0-3.2 1.6-6.2 4-8.3Z"
+          />
+        </svg>
+      </span>
+    )
+  }
+  return (
+    <span className="model-brand gpt" aria-hidden>
+      <svg viewBox="0 0 24 24" width="14" height="14">
+        <path
+          fill="currentColor"
+          d="M12.4 3.2c1.1-.6 2.5-.3 3.3.7l.2.3c.5-.2 1-.2 1.5 0 1.2.5 1.8 1.8 1.4 3l-.1.2c.7.8.8 2 .3 3-.3.5-.7.8-1.2 1 .2.5.2 1 0 1.5-.5 1.2-1.8 1.8-3 1.4l-.2-.1c-.2.5-.6.9-1.1 1.1-1.1.6-2.5.3-3.3-.7l-.2-.3c-.5.2-1 .2-1.5 0-1.2-.5-1.8-1.8-1.4-3l.1-.2c-.7-.8-.8-2-.3-3 .3-.5.7-.8 1.2-1-.2-.5-.2-1 0-1.5.5-1.2 1.8-1.8 3-1.4l.2.1c.2-.5.6-.9 1.1-1.1Zm-.3 3.5c-.7.4-.9 1.2-.6 1.9l1.8 3.1c.4.7 1.2.9 1.9.6.7-.4.9-1.2.6-1.9l-1.8-3.1c-.4-.7-1.2-.9-1.9-.6Z"
+        />
+      </svg>
+    </span>
+  )
+}
 
 function sessionLiveStatus(p: {
   control: Control
@@ -114,8 +157,11 @@ export default function App() {
   const messages = inbox[sessionId] || [welcome()]
   const [draft, setDraft] = useState('')
   const [typing, setTyping] = useState(false)
-  const [agentMode, setAgentMode] = useState<(typeof AGENT_MODES)[number]['id']>('balanced')
+  const [modelId, setModelId] = useState<(typeof MODELS)[number]['id']>('ds-flash')
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false)
+  const [marketTab, setMarketTab] = useState<'expert' | 'skill' | 'connector'>('expert')
+  const attachFileRef = useRef<HTMLInputElement>(null)
   const [composerFocused, setComposerFocused] = useState(false)
   const [phIndex, setPhIndex] = useState(0)
   const [phVisible, setPhVisible] = useState(true)
@@ -619,6 +665,13 @@ export default function App() {
     return () => window.removeEventListener('click', close)
   }, [modeMenuOpen])
 
+  useEffect(() => {
+    if (!attachMenuOpen) return
+    const close = () => setAttachMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [attachMenuOpen])
+
   const switchSession = (id: string) => {
     setSessionId(id)
     setEditingSessionId(null)
@@ -1088,17 +1141,94 @@ export default function App() {
             </div>
             <div className="composer-toolbar">
               <div className="composer-tools">
-                <button
-                  type="button"
-                  className="tool-icon"
-                  title="填入一条建议"
-                  onClick={() => {
-                    const i = Math.floor(Math.random() * suggestions.length)
-                    setDraft(suggestions[i] || '')
-                  }}
-                >
-                  <IconPlus />
-                </button>
+                <div className="attach-wrap">
+                  <button
+                    type="button"
+                    className="tool-icon"
+                    title="可添加文件、专家、技能、连接器"
+                    aria-label="可添加文件、专家、技能、连接器"
+                    aria-expanded={attachMenuOpen}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAttachMenuOpen((v) => !v)
+                      setModeMenuOpen(false)
+                    }}
+                  >
+                    <IconPlus />
+                  </button>
+                  <input
+                    ref={attachFileRef}
+                    type="file"
+                    className="attach-file-input"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      e.target.value = ''
+                      if (!files.length) return
+                      const session = sessionList.find((s) => s.id === sessionId)?.title || '当前任务'
+                      const added = files.map((f) => {
+                        const ext = (f.name.split('.').pop() || 'doc').toLowerCase()
+                        const type = (['xls', 'xlsx', 'csv'].includes(ext)
+                          ? 'xls'
+                          : ['ppt', 'pptx'].includes(ext)
+                            ? 'ppt'
+                            : ['html', 'htm'].includes(ext)
+                              ? 'html'
+                              : 'doc') as Artifact['type']
+                        return {
+                          id: uid('f'),
+                          type,
+                          name: f.name,
+                          sub: `刚刚 · ${(f.size / 1024).toFixed(1)} KB`,
+                          kind: (type === 'html' ? 'code' : 'doc') as Artifact['kind'],
+                          source: 'dialogue' as const,
+                          status: 'done' as const,
+                          session,
+                          pages: '1 页',
+                          preview: `本地上传：${f.name}\n大小 ${(f.size / 1024).toFixed(1)} KB\n已关联到当前任务，可在「产物与文件」中查看。`,
+                        }
+                      })
+                      setArtifacts((list) => [...added, ...list])
+                      setFileId(added[0].id)
+                      setPanel('files')
+                      setArtifactSource('all')
+                      setMobilePane('bench')
+                      say('user', `添加文件：${files.map((f) => f.name).join('、')}`)
+                      say('agent', `已把 ${files.length} 个文件加入当前任务的「产物与文件」。`)
+                    }}
+                  />
+                  {attachMenuOpen && (
+                    <div className="attach-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                      {(
+                        [
+                          ['file', '文件', '上传到当前任务产物'],
+                          ['expert', '专家', '启用专家能力'],
+                          ['skill', '技能', '调用可复用技能'],
+                          ['connector', '连接器', '接入上下文来源'],
+                        ] as const
+                      ).map(([id, label, tip]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAttachMenuOpen(false)
+                            if (id === 'file') {
+                              attachFileRef.current?.click()
+                              return
+                            }
+                            setMarketTab(id)
+                            setRailNav('skills')
+                            setRailOpen(false)
+                          }}
+                        >
+                          <b>{label}</b>
+                          <em>{tip}</em>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button type="button" className="tool-pill" title="权限策略">
                   <IconShield />
                   <span>默认权限</span>
@@ -1115,38 +1245,52 @@ export default function App() {
                   <button
                     type="button"
                     className="tool-pill mode-pill"
+                    title="选择大模型"
                     onClick={(e) => {
                       e.stopPropagation()
                       setModeMenuOpen((v) => !v)
                     }}
                   >
-                    <span className="brand-mark" aria-hidden>
-                      <IconLogo />
+                    <ModelBrand brand={MODELS.find((m) => m.id === modelId)?.brand || 'deepseek'} />
+                    <span className="model-trigger-name">
+                      {MODELS.find((m) => m.id === modelId)?.name || 'Deepseek-V4.1-Flash'}
                     </span>
-                    <span>{AGENT_MODES.find((m) => m.id === agentMode)?.label || '均衡'}</span>
                     <IconChevronDown />
                   </button>
                   {modeMenuOpen && (
-                    <div className="mode-menu" role="listbox" onClick={(e) => e.stopPropagation()}>
-                      {AGENT_MODES.map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          className={agentMode === m.id ? 'on' : ''}
-                          role="option"
-                          aria-selected={agentMode === m.id}
-                          onClick={() => {
-                            setAgentMode(m.id)
-                            setModeMenuOpen(false)
-                          }}
-                        >
-                          <span className="mode-label">
-                            <b>{m.label}</b>
-                            <em>{m.tip}</em>
-                          </span>
-                          {agentMode === m.id && <i className="mode-check">✓</i>}
-                        </button>
-                      ))}
+                    <div className="mode-menu model-menu" role="listbox" onClick={(e) => e.stopPropagation()}>
+                      <div className="model-menu-list">
+                        {MODELS.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className={modelId === m.id ? 'on' : ''}
+                            role="option"
+                            aria-selected={modelId === m.id}
+                            onClick={() => {
+                              setModelId(m.id)
+                              setModeMenuOpen(false)
+                            }}
+                          >
+                            <ModelBrand brand={m.brand} />
+                            <span className="model-name">{m.name}</span>
+                            {m.free && <span className="model-free">Free now</span>}
+                            <span className="model-cost">{m.cost}</span>
+                            {modelId === m.id && <i className="mode-check">✓</i>}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="model-menu-foot"
+                        onClick={() => {
+                          setModeMenuOpen(false)
+                          say('agent', '自定义模型配置入口已预留，当前演示可直接切换上方模型列表。')
+                        }}
+                      >
+                        <IconPencil />
+                        配置自定义模型
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1667,6 +1811,8 @@ export default function App() {
       {railNav === 'skills' && (
         <div className="market-layer">
           <MarketPage
+            key={marketTab}
+            initialTab={marketTab}
             onUse={(title) => {
               setRailNav('assistant')
               say('user', `启用「${title}」`)

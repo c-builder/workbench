@@ -39,8 +39,14 @@ const connectors = [
   { name: '日历空闲', desc: '检索会议室冲突与可改期建议，提交前交还你。', tags: ['行政', '日历'] },
 ]
 
-export function MarketPage({ onUse }: { onUse: (title: string) => void }) {
-  const [tab, setTab] = useState<MarketTab>('expert')
+export function MarketPage({
+  onUse,
+  initialTab = 'expert',
+}: {
+  onUse: (title: string) => void
+  initialTab?: MarketTab
+}) {
+  const [tab, setTab] = useState<MarketTab>(initialTab)
   const [cat, setCat] = useState('全部')
   const [q, setQ] = useState('')
 
