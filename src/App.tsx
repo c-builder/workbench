@@ -9,7 +9,7 @@ import {
   sessionSeeds,
   suggestions,
 } from './data'
-import { IconExternal, IconHand, IconLogo, IconPause, IconPlay, IconPlus, IconSend } from './icons'
+import { IconAssistant, IconChatPlus, IconClock, IconExternal, IconHand, IconLogo, IconNodes, IconPause, IconPlay, IconPlus, IconSend } from './icons'
 import type {
   Artifact,
   BrowserTab,
@@ -72,6 +72,7 @@ export default function App() {
   const [domainFilter, setDomainFilter] = useState<'all' | Domain>('all')
   const [sessionList, setSessionList] = useState<Session[]>(seedSessions)
   const [sessionId, setSessionId] = useState('s1')
+  const [railNav, setRailNav] = useState<'assistant' | 'skills' | 'schedule'>('assistant')
   const [inbox, setInbox] = useState<Record<string, ChatMessage[]>>({
     s1: seedMessages('s1'),
     s2: seedMessages('s2'),
@@ -493,6 +494,7 @@ export default function App() {
     setSessionList((list) => [s, ...list])
     setInbox((box) => ({ ...box, [id]: [welcome()] }))
     setSessionId(id)
+    setRailNav('assistant')
   }
 
   const send = (text?: string) => {
@@ -585,26 +587,80 @@ export default function App() {
   return (
     <div className="app-shell" style={{ ['--bench' as string]: `${bench}%` }}>
       <aside className="rail">
-        <div className="logo" title="衡台">
-          <IconLogo />
+        <div className="rail-brand">
+          <div className="logo" title="衡台">
+            <IconLogo />
+          </div>
+          <div>
+            <b>衡台</b>
+            <span>工作助手</span>
+          </div>
         </div>
-        <button className="rail-btn" title="新会话" onClick={newSession}>
-          <IconPlus />
+        <button className="new-task" onClick={newSession}>
+          <IconChatPlus />
+          新建任务
         </button>
-        <div className="rail-sessions">
-          {sessionList.map((s) => (
-            <button
-              key={s.id}
-              className={`rail-btn ${s.id === sessionId ? 'active' : ''}`}
-              title={`${s.title} · ${s.time}`}
-              onClick={() => switchSession(s.id)}
-            >
-              <span className="dot-session" style={{ opacity: s.id === sessionId ? 1 : 0.35 }} />
-            </button>
-          ))}
+        <nav className="rail-nav">
+          <button className={railNav === 'assistant' ? 'active' : ''} onClick={() => setRailNav('assistant')}>
+            <IconAssistant />
+            助理
+          </button>
+          <button className={railNav === 'skills' ? 'active' : ''} onClick={() => setRailNav('skills')}>
+            <IconNodes />
+            专家·技能·连接器
+          </button>
+          <button className={railNav === 'schedule' ? 'active' : ''} onClick={() => setRailNav('schedule')}>
+            <IconClock />
+            定时任务
+          </button>
+        </nav>
+        <div className="rail-body">
+          {railNav === 'assistant' &&
+            (sessionList.length ? (
+              sessionList.map((s) => (
+                <button
+                  key={s.id}
+                  className={`task-item ${s.id === sessionId ? 'active' : ''}`}
+                  onClick={() => switchSession(s.id)}
+                >
+                  <span className="task-title">{s.title}</span>
+                  <span className="task-time">{s.time}</span>
+                </button>
+              ))
+            ) : (
+              <div className="rail-empty">
+                <b>暂无任务</b>
+                <p>点击上方按钮开始新任务</p>
+              </div>
+            ))}
+          {railNav === 'skills' && (
+            <div className="skill-list">
+              {[
+                { n: 'W3 审批', d: '待办读取 / 预填 / 提交前交接' },
+                { n: 'eBuy 采购', d: '供应商与订单只读跟踪' },
+                { n: '费控报销', d: '发票 OCR 比对' },
+                { n: '行政门户', d: '会议室冲突检索' },
+              ].map((x) => (
+                <div key={x.n} className="skill-card">
+                  <b>{x.n}</b>
+                  <span>{x.d}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {railNav === 'schedule' && (
+            <div className="rail-empty">
+              <b>暂无定时任务</b>
+              <p>可把重复待办预审设为每日提醒</p>
+            </div>
+          )}
         </div>
-        <div className="rail-user" title={ME}>
-          {ME.slice(0, 1)}
+        <div className="rail-foot">
+          <div className="rail-user">{ME.slice(0, 1)}</div>
+          <div>
+            <b>{ME}</b>
+            <span>待办人</span>
+          </div>
         </div>
       </aside>
 

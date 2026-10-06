@@ -54,3 +54,41 @@ export function IconExternal() {
     </svg>
   )
 }
+export function IconChatPlus() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7A2.5 2.5 0 0 1 16.5 16H12l-4 3v-3H7.5A2.5 2.5 0 0 1 5 13.5v-7Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path d="M12 8v5M9.5 10.5h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+export function IconAssistant() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M5.5 18.5c1.2-3 3.6-4.5 6.5-4.5s5.3 1.5 6.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+export function IconNodes() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <circle cx="7" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="17" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="17" r="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M9 8.8 10.6 15M15 8.8 13.4 15M9.2 8h5.6" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+export function IconClock() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}

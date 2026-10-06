@@ -44,7 +44,7 @@ button { cursor: pointer; }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 6px minmax(0, var(--bench, 52%));
+  grid-template-columns: 248px minmax(0, 1fr) 6px minmax(0, var(--bench, 52%));
   height: 100%;
   width: 100%;
   min-width: 0;
@@ -52,41 +52,90 @@ button { cursor: pointer; }
 }
 
 .rail {
-  background: #15261e;
-  color: #f4efe4;
+  background: #f4f4f5;
+  color: #1f1f1f;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 14px 8px 12px;
-  gap: 10px;
+  align-items: stretch;
+  padding: 14px 12px 12px;
+  gap: 8px;
   min-height: 0;
+  border-right: 1px solid rgba(26, 46, 36, 0.08);
 }
+
+.rail-brand {
+  display: flex; align-items: center; gap: 10px; padding: 4px 6px 10px;
+}
+.rail-brand b { display: block; font-size: 14px; }
+.rail-brand span { font-size: 11px; color: #6b6b70; }
 
 .logo {
-  width: 42px; height: 42px;
-  border-radius: 12px;
-  background: linear-color(#1a2e24);
+  width: 36px; height: 36px;
+  border-radius: 10px;
   background: #1a2e24;
   border: 1px solid rgba(232, 196, 122, 0.35);
-  display: grid; place-items: center;
+  display: grid; place-items: center; flex-shrink: 0;
 }
-.logo svg { width: 24px; height: 24px; }
+.logo svg { width: 20px; height: 20px; }
 
-.rail-btn {
-  width: 44px; height: 44px;
-  border: 0; border-radius: 12px;
-  background: transparent; color: #d8e6de;
-  display: grid; place-items: center;
+.new-task {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; border: 0; border-radius: 12px;
+  background: #e8e8ea; color: #1f1f1f; font-size: 14px; font-weight: 600;
 }
-.rail-btn:hover, .rail-btn.active { background: rgba(232, 196, 122, 0.14); color: #e8c47a; }
-.rail-sessions { flex: 1; display: flex; flex-direction: column; gap: 6px; width: 100%; align-items: center; }
-.dot-session {
-  width: 8px; height: 8px; border-radius: 99px; background: #7cb89a;
+.new-task:hover { background: #dedee2; }
+
+.rail-nav { display: flex; flex-direction: column; gap: 2px; }
+.rail-nav button {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; border: 0; background: transparent;
+  color: #3a3a3e; border-radius: 10px; padding: 9px 10px;
+  font-size: 13.5px; text-align: left;
 }
+.rail-nav button:hover { background: #ececee; }
+.rail-nav button.active { background: #e4e4e7; color: #111; font-weight: 600; }
+
+.rail-body {
+  flex: 1; min-height: 0; overflow: auto;
+  display: flex; flex-direction: column; gap: 4px; padding-top: 6px;
+}
+
+.task-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; border: 0; background: transparent; text-align: left;
+  border-radius: 10px; padding: 8px 10px; color: #2a2a2e;
+}
+.task-item:hover { background: #ececee; }
+.task-item.active { background: #fff; box-shadow: 0 0 0 1px rgba(26,46,36,.08); }
+.task-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.task-time { font-size: 11px; color: #8a8a90; }
+
+.rail-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 24px 12px; color: #8a8a90;
+}
+.rail-empty b { display: block; color: #1f1f1f; font-size: 15px; margin-bottom: 6px; }
+.rail-empty p { margin: 0; font-size: 13px; }
+
+.skill-list { display: flex; flex-direction: column; gap: 6px; }
+.skill-card {
+  background: #fff; border-radius: 10px; padding: 10px 12px;
+  border: 1px solid rgba(26,46,36,.08);
+}
+.skill-card b { display: block; font-size: 13px; }
+.skill-card span { font-size: 11px; color: #6b6b70; }
+
+.rail-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 6px 2px; border-top: 1px solid rgba(26,46,36,.08);
+}
+.rail-foot b { display: block; font-size: 13px; }
+.rail-foot span { font-size: 11px; color: #6b6b70; }
+
 .rail-user {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: #e8c47a; color: #15261e;
-  display: grid; place-items: center; font-weight: 700; font-size: 12px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #1a2e24; color: #e8c47a;
+  display: grid; place-items: center; font-weight: 700; font-size: 12px; flex-shrink: 0;
 }
 
 .chat {
