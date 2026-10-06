@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# 构建产物仅由 GitHub Actions 在线生成，勿提交
 dist
 dist-ssr
 *.local

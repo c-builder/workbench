@@ -8,6 +8,8 @@
 
 ## 本地运行
 
+本地只跑开发服务，**不要执行 `npm run build`，也不要提交 `dist`**。发布由 GitHub Actions 在云端完成。
+
 ```bash
 npm install
 npm run dev
@@ -23,8 +25,8 @@ npm run dev
 - 我的申请：他人节点只读跟踪与催办，不可代办
 - 产物：预览 doc / ppt / xls / html，HTML 可在应用面板打开
 
-## GitHub Actions
+## 发布
 
-推送到 `main` 或在 Actions 里手动 **Run workflow**，会执行 `npm ci` → `npm run build`，再把 `dist` 发布到 GitHub Pages。
+每次把代码推送到 `main`（或在 Actions 里手动 Run workflow），GitHub Actions 会在线执行 `npm ci` 和 `npm run build`，并把产物发布到 `gh-pages`。本地不生成、不提交 `dist`。
 
-仓库首次发布后，在 **Settings → Pages → Build and deployment** 选择 **Deploy from a branch**，Branch 选 `gh-pages` / `/ (root)`。之后每次推送 `main` 都会自动重建并更新站点。
+首次使用前在 **Settings → Pages → Build and deployment** 选择 **Deploy from a branch**，Branch 选 `gh-pages` / `/ (root)`。之后每次提交都会自动更新 [在线 Demo](https://c-builder.github.io/workbench/)。
