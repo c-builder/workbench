@@ -12,6 +12,7 @@ import {
 import { IconBoard, IconChat, IconChatPlus, IconChevron, IconClock, IconLogo, IconMenu, IconNodes, IconPause, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
 import type {
   Artifact,
+  ArtifactSource,
   BrowserTab,
   ChatMessage,
   Control,
@@ -25,7 +26,7 @@ import type {
 } from './types'
 import { LogPanel } from './LogPanel'
 import { MarketPage } from './MarketPage'
-import { downloadArtifact, execLabel, NodeStrip, nowStamp, typeLabel } from './ui'
+import { downloadArtifact, execLabel, NodeStrip, nowStamp, sourceLabel, typeLabel } from './ui'
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
@@ -112,6 +113,7 @@ export default function App() {
   const [customApps, setCustomApps] = useState<{ id: string; name: string; url: string; desc: string }[]>([])
   const [addAppOpen, setAddAppOpen] = useState(false)
   const [newAppName, setNewAppName] = useState('')
+  const [newAppDesc, setNewAppDesc] = useState('')
   const [newAppUrl, setNewAppUrl] = useState('https://')
   const allApps = useMemo(() => [...appShortcuts, ...customApps], [customApps])
   const [logs, setLogs] = useState<LogEntry[]>([])
@@ -125,6 +127,7 @@ export default function App() {
   const [batchConfirm, setBatchConfirm] = useState(false)
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts)
   const [fileId, setFileId] = useState(initialArtifacts[0].id)
+  const [artifactSource, setArtifactSource] = useState<'all' | ArtifactSource>('all')
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null)
   const [cursor, setCursor] = useState({ x: 40, y: 80, on: false })
   const msgEnd = useRef<HTMLDivElement>(null)
@@ -270,11 +273,11 @@ export default function App() {
       id: artId,
       type: 'doc',
       name: `${todo.title.split('·')[0].trim()}处理草稿.docx`,
-      sub: 'Agent 代办 · 生成中',
+      sub: '生成中',
       kind: 'doc',
       source: 'agent',
       status: 'generating',
-      session: '本次会话',
+      session: sessionList.find((s) => s.id === sessionId)?.title || '当前任务',
       pages: '—',
       preview: '正在抽取上下文并起草…',
     })
@@ -330,7 +333,7 @@ export default function App() {
     setArtifacts((list) =>
       list.map((a) =>
         a.id === artId
-          ? { ...a, status: 'done', sub: `Agent 代办 · ${nowStamp()}`, pages: '1 页', preview: steps.join('\n') }
+          ? { ...a, status: 'done', sub: nowStamp(), pages: '1 页', preview: steps.join('\n') }
           : a,
       ),
     )
@@ -383,11 +386,11 @@ export default function App() {
       id: uid('f'),
       type: 'xls',
       name: '批量预审对照表.xlsx',
-      sub: `Agent 代办 · ${nowStamp()} · ${items.length} 条`,
+      sub: `${nowStamp()} · ${items.length} 条`,
       kind: 'doc',
       source: 'agent',
       status: 'done',
-      session: '本次会话',
+      session: sessionList.find((s) => s.id === sessionId)?.title || '当前任务',
       pages: '1 页',
       preview: items
         .map(
@@ -450,11 +453,11 @@ export default function App() {
         id: uid('f'),
         type: 'doc',
         name: `${t?.title.split('·')[0].trim() || '流程'}结论.docx`,
-        sub: `流程联动 · ${nowStamp()}`,
+        sub: nowStamp(),
         kind: 'doc',
         source: 'flow',
         status: 'done',
-        session: '本次会话',
+        session: sessionList.find((s) => s.id === sessionId)?.title || '当前任务',
         pages: '1 页',
         preview: `已提交。节点完成，下一处理人按历程流转。\n来源：${t?.title}`,
       })
@@ -640,7 +643,23 @@ export default function App() {
   }
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0]
-  const file = artifacts.find((a) => a.id === fileId) || artifacts[0]
+  const currentSessionTitle = sessionList.find((s) => s.id === sessionId)?.title || '当前任务'
+  const filteredArtifacts = useMemo(
+    () =>
+      artifacts.filter(
+        (a) => a.session === currentSessionTitle && (artifactSource === 'all' || a.source === artifactSource),
+      ),
+    [artifacts, artifactSource, currentSessionTitle],
+  )
+  const file = filteredArtifacts.find((a) => a.id === fileId) || filteredArtifacts[0]
+
+  useEffect(() => {
+    if (!filteredArtifacts.length) {
+      if (fileId) setFileId('')
+      return
+    }
+    if (!filteredArtifacts.some((a) => a.id === fileId)) setFileId(filteredArtifacts[0].id)
+  }, [filteredArtifacts, fileId])
 
   const openAppTab = (a: { id: string; name: string; url: string }, source: '应用中心' | '新增应用') => {
     const kind: BrowserTab['kind'] =
@@ -663,13 +682,15 @@ export default function App() {
 
   const submitNewApp = () => {
     const name = newAppName.trim()
+    const desc = newAppDesc.trim() || '自定义应用'
     let url = newAppUrl.trim()
     if (!name || !url) return
     if (!/^https?:|^hengtai:/i.test(url)) url = 'https://' + url
-    const app = { id: uid('app'), name, url, desc: '自定义应用' }
+    const app = { id: uid('app'), name, url, desc }
     setCustomApps((list) => [...list, app])
     setAddAppOpen(false)
     setNewAppName('')
+    setNewAppDesc('')
     setNewAppUrl('https://')
     openAppTab(app, '新增应用')
   }
@@ -1236,65 +1257,101 @@ export default function App() {
           {panel === 'files' && (
             <div className="files">
               <div className="file-list">
-                {['本次会话', '上次会话'].map((g) => (
-                  <div key={g}>
-                    <div className="section-h">{g}</div>
-                    {artifacts
-                      .filter((a) => a.session === g)
-                      .map((a) => (
-                        <div key={a.id} className={`file-row ${fileId === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}>
-                          <button type="button" className="file-item" onClick={() => setFileId(a.id)}>
-                            <b>
-                              {typeLabel(a.type)} · {a.name}
-                            </b>
-                            <span>
-                              {a.sub} {a.status === 'generating' ? '· 生成中' : ''}
-                            </span>
-                          </button>
-                          {a.status !== 'generating' && (
-                            <button type="button" className="file-dl" onClick={() => downloadArtifact(a)}>
-                              下载
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                <div className="file-filters">
+                  {(
+                    [
+                      ['all', '全部'],
+                      ['agent', 'Agent 代办'],
+                      ['dialogue', '对话产物'],
+                      ['flow', '流程联动'],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`btn ${artifactSource === id ? 'primary' : ''}`}
+                      onClick={() => setArtifactSource(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="file-task-label" title={currentSessionTitle}>
+                  当前任务 · {currentSessionTitle}
+                </div>
+                {!filteredArtifacts.length ? (
+                  <div className="rail-empty" style={{ padding: '28px 8px' }}>
+                    <b>本任务暂无产物</b>
+                    <p>在此任务中协同处理、对话生成或流程完成后，文件会出现在这里。</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="file-group">
+                    <div className="section-h">
+                      <span>产物列表</span>
+                      <span className="hint">{filteredArtifacts.length}</span>
+                    </div>
+                    {filteredArtifacts.map((a) => (
+                      <div key={a.id} className={`file-row ${file?.id === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}>
+                        <button type="button" className="file-item" onClick={() => setFileId(a.id)}>
+                          <b>
+                            <span className="file-type">{typeLabel(a.type)}</span>
+                            {a.name}
+                          </b>
+                          <span className="file-meta">
+                            <i className={`file-src ${a.source}`}>{sourceLabel(a.source)}</i>
+                            {a.status === 'generating' ? '生成中' : a.sub}
+                            {a.pages ? ` · ${a.pages}` : ''}
+                          </span>
+                        </button>
+                        {a.status !== 'generating' && (
+                          <button type="button" className="file-dl" onClick={() => downloadArtifact(a)}>
+                            下载
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="preview">
-                <div className="row-actions">
-                  <span className="hint">
-                    来源：{file.source === 'agent' ? 'Agent 代办' : file.source === 'flow' ? '流程联动' : file.source === 'dialogue' ? '对话生成' : '本地'} · {file.pages}
-                  </span>
-                  <button className="btn" disabled={file.status === 'generating'} onClick={() => downloadArtifact(file)}>
-                    下载
-                  </button>
-                  {file.type === 'html' && (
-                    <button
-                      className="btn primary"
-                      onClick={() => {
-                        const tab: BrowserTab = {
-                          id: uid('tab'),
-                          title: file.name,
-                          url: 'hengtai://artifact/' + file.id,
-                          kind: 'html',
-                          html: file.preview,
-                          controlDot: 'human',
-                        }
-                        setTabs((ts) => [...ts, tab])
-                        setActiveTab(tab.id)
-                        setUrlInput(tab.url)
-                        setPanel('app')
-                        setMobilePane('bench')
-                        if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
-                        say('agent', `已在应用面板打开 ${file.name}，控制权归你。`)
-                      }}
-                    >
-                      在应用中打开
-                    </button>
-                  )}
-                </div>
-                <div className="preview-paper">{file.preview}</div>
+                {!file ? (
+                  <div className="preview-empty">
+                    <b>选择左侧产物预览</b>
+                    <p>在工作台内快速查看内容，无需先下载。HTML 产物还可在应用面板打开。</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="preview-head">
+                      <h3>{file.name}</h3>
+                      {file.type === 'html' && file.status !== 'generating' && (
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => {
+                            const tab: BrowserTab = {
+                              id: uid('tab'),
+                              title: file.name,
+                              url: 'hengtai://artifact/' + file.id,
+                              kind: 'html',
+                              html: file.preview,
+                              controlDot: 'human',
+                            }
+                            setTabs((ts) => [...ts, tab])
+                            setActiveTab(tab.id)
+                            setUrlInput(tab.url)
+                            setPanel('app')
+                            setMobilePane('bench')
+                            if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
+                            say('agent', `已在应用面板打开 ${file.name}，控制权归你。`)
+                          }}
+                        >
+                          在应用中打开
+                        </button>
+                      )}
+                    </div>
+                    <ArtifactPreview artifact={file} />
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1371,6 +1428,15 @@ export default function App() {
                   placeholder="例如：费控报销"
                   onChange={(e) => setNewAppName(e.target.value)}
                   autoFocus
+                />
+              </div>
+              <div className="field">
+                <label>简介</label>
+                <input
+                  className="val"
+                  value={newAppDesc}
+                  placeholder="例如：发票与单据"
+                  onChange={(e) => setNewAppDesc(e.target.value)}
                 />
               </div>
               <div className="field">
@@ -1541,6 +1607,53 @@ export default function App() {
       )}
     </div>
   )
+}
+
+function ArtifactPreview({ artifact }: { artifact: Artifact }) {
+  if (artifact.status === 'generating') {
+    return (
+      <div className="preview-paper preview-generating">
+        <p className="gen">正在生成预览…</p>
+      </div>
+    )
+  }
+  if (artifact.type === 'xls' && artifact.preview.includes('\t')) {
+    const rows = artifact.preview.split('\n').filter(Boolean).map((line) => line.split('\t'))
+    const [head, ...body] = rows
+    return (
+      <div className="preview-paper preview-table-wrap">
+        <table className="preview-table">
+          <thead>
+            <tr>
+              {head.map((c) => (
+                <th key={c}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {body.map((row, i) => (
+              <tr key={i}>
+                {row.map((c, j) => (
+                  <td key={j}>{c}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+  if (artifact.type === 'html') {
+    return (
+      <div className="preview-paper preview-html">
+        <div className="hint" style={{ marginBottom: 10 }}>
+          HTML 预览（只读）。需要交互可点「在应用中打开」。
+        </div>
+        <div className="preview-html-body" dangerouslySetInnerHTML={{ __html: artifact.preview }} />
+      </div>
+    )
+  }
+  return <div className="preview-paper">{artifact.preview}</div>
 }
 
 function TodoCard({

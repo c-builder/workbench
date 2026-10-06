@@ -46,6 +46,13 @@ export function typeLabel(t: Artifact['type']) {
   return t.toUpperCase()
 }
 
+export function sourceLabel(s: Artifact['source']) {
+  if (s === 'agent') return 'Agent 代办'
+  if (s === 'flow') return '流程联动'
+  if (s === 'dialogue') return '对话产物'
+  return '本地'
+}
+
 function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
