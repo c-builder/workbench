@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import {
   appShortcuts,
   initialArchived,
@@ -45,7 +45,7 @@ const MODELS = [
 
 function ModelBrand({ brand }: { brand: (typeof MODELS)[number]['brand'] }) {
   if (brand === 'deepseek') {
-    return (
+  return (
       <span className="model-brand deepseek" aria-hidden>
         <svg viewBox="0 0 24 24" width="14" height="14">
           <path
@@ -117,7 +117,9 @@ function seedMessages(id: string): ChatMessage[] {
 
 export default function App() {
   const [bench, setBench] = useState(50)
+  const [splitting, setSplitting] = useState(false)
   const drag = useRef(false)
+  const shellRef = useRef<HTMLDivElement>(null)
   const runRef = useRef(0)
   const fillKeys = useRef<string[]>([])
 
@@ -240,23 +242,68 @@ export default function App() {
   }, [draft])
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!drag.current) return
-      const w = window.innerWidth
-      const rest = Math.max(480, w - 248)
-      const pct = ((w - e.clientX) / rest) * 100
-      setBench(Math.min(70, Math.max(30, pct)))
-    }
-    const up = () => {
-      drag.current = false
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', up)
+    if (!splitting) return
+    const prevUserSelect = document.body.style.userSelect
+    const prevCursor = document.body.style.cursor
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
     return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', up)
+      document.body.style.userSelect = prevUserSelect
+      document.body.style.cursor = prevCursor
     }
-  }, [])
+  }, [splitting])
+
+  const resizeBench = (clientX: number) => {
+    const shell = shellRef.current
+    if (!shell) return
+    const rect = shell.getBoundingClientRect()
+    const railW = 248
+    const gutter = 12
+    const rest = Math.max(320, rect.width - railW - gutter)
+    const fromRight = rect.right - clientX
+    const pct = (fromRight / rest) * 100
+    setBench(Math.min(72, Math.max(28, pct)))
+  }
+
+  const onSplitterPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    drag.current = true
+    setSplitting(true)
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.currentTarget.focus()
+  }
+
+  const onSplitterPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return
+    resizeBench(e.clientX)
+  }
+
+  const onSplitterPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return
+    drag.current = false
+    setSplitting(false)
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    e.currentTarget.blur()
+  }
+
+  const onSplitterKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 8 : 2
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      setBench((v) => Math.min(72, v + step))
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      setBench((v) => Math.max(28, v - step))
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setBench(28)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setBench(72)
+    }
+  }
 
   const logHead = useRef<string | undefined>(undefined)
 
@@ -875,16 +922,17 @@ export default function App() {
 
   return (
     <div
-      className={`app-shell mobile-${mobilePane}${railOpen ? ' rail-open' : ''}`}
-      style={{ gridTemplateColumns: `248px minmax(0, ${100 - bench}fr) 6px minmax(0, ${bench}fr)` }}
+      ref={shellRef}
+      className={`app-shell mobile-${mobilePane}${railOpen ? ' rail-open' : ''}${splitting ? ' is-splitting' : ''}`}
+      style={{ gridTemplateColumns: `248px minmax(0, ${100 - bench}fr) 12px minmax(0, ${bench}fr)` }}
     >
       {railOpen && <button type="button" className="rail-scrim" aria-label="关闭菜单" onClick={() => setRailOpen(false)} />}
       <aside className="rail">
         <div className="rail-brand">
           <div className="logo" title="衡台">
             <IconLogo />
-          </div>
-          <div>
+        </div>
+        <div>
             <b>衡台</b>
             <span>工作助手</span>
           </div>
@@ -957,8 +1005,8 @@ export default function App() {
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
-                      <button
-                        type="button"
+        <button
+          type="button"
                         className="task-main"
                         onClick={() => {
                           switchSession(s.id)
@@ -968,7 +1016,7 @@ export default function App() {
                         }}
                       >
                         <span className="task-title">{s.title}</span>
-                      </button>
+        </button>
                     )}
                     <div className="task-side">
                       {st === 'confirm' && (
@@ -1309,7 +1357,30 @@ export default function App() {
         </div>
       </section>
 
-      <div className="splitter" onMouseDown={() => (drag.current = true)} />
+      <div
+        className={`splitter${splitting ? ' is-active' : ''}`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整对话与工作台宽度"
+        aria-valuenow={Math.round(bench)}
+        aria-valuemin={28}
+        aria-valuemax={72}
+        aria-valuetext={`工作台占 ${Math.round(bench)}%`}
+        tabIndex={0}
+        onPointerDown={onSplitterPointerDown}
+        onPointerMove={onSplitterPointerMove}
+        onPointerUp={onSplitterPointerUp}
+        onPointerCancel={onSplitterPointerUp}
+        onKeyDown={onSplitterKeyDown}
+        onDoubleClick={() => setBench(50)}
+      >
+        <span className="splitter-line" aria-hidden />
+        <span className="splitter-grip" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
+      </div>
 
       <aside className="bench">
         <div className="bench-head">
@@ -1336,7 +1407,7 @@ export default function App() {
                 <span className="count">{count}</span>
               </button>
             ))}
-          </div>
+        </div>
         </div>
         {control !== 'none' && (
           <div className={`control-strip ${control}`} title="工作台全局控制权：同时只有一方在操作现场">
@@ -1833,8 +1904,8 @@ export default function App() {
             <div className="rail-empty" style={{ minHeight: '60vh' }}>
               <b>暂无定时任务</b>
               <p>把重复的待办预审设为每日提醒后，会显示在这里。</p>
-            </div>
-          </section>
+        </div>
+      </section>
         </div>
       )}
 

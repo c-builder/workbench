@@ -524,20 +524,88 @@ button { cursor: pointer; }
 .send-round:not(:disabled):hover { filter: brightness(1.08); }
 
 .splitter {
-  cursor: col-resize;
-  background: transparent;
   position: relative;
+  z-index: 4;
+  width: 12px;
+  margin: 0 -1px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  outline: none;
+  display: grid;
+  place-items: center;
 }
-.splitter::after {
-  content: '';
-  position: absolute; inset: 12% 2px;
+.splitter-line {
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 1px; transform: translateX(-50%);
+  background: #d8d8d6;
+  transition:
+    width 0.2s ease,
+    background 0.2s ease;
+}
+.splitter-grip {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  width: 14px; height: 36px;
   border-radius: 99px;
-  background: var(--line-strong);
+  background: #fff;
+  border: 1px solid #d8d8d6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transform: translateY(0) scale(0.96);
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+.splitter-grip i {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: #a3a3a0;
+  display: block;
+  transition: background 0.22s ease;
+}
+.splitter:hover .splitter-line,
+.splitter.is-active .splitter-line,
+.splitter:focus-visible .splitter-line {
+  width: 2px;
+  background: #8a8a87;
+}
+.splitter:hover .splitter-grip,
+.splitter.is-active .splitter-grip,
+.splitter:focus-visible .splitter-grip {
+  opacity: 1;
+  transform: none;
+  border-color: #c4c4c1;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.splitter:hover .splitter-grip i,
+.splitter.is-active .splitter-grip i,
+.splitter:focus-visible .splitter-grip i {
+  background: #6f6f6c;
+}
+/* 移出时稍慢一点，淡出更自然 */
+.splitter:not(:hover):not(.is-active):not(:focus-visible) .splitter-grip {
+  transition-duration: 0.28s;
+  transition-timing-function: ease-out;
+}
+.splitter:focus-visible {
+  outline: none;
+}
+.app-shell.is-splitting {
+  cursor: col-resize;
+}
+.app-shell.is-splitting * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .bench {
   background: var(--surface);
-  border-left: 1px solid var(--line);
+  border-left: 0;
   display: flex; flex-direction: column;
   min-width: 0;
   min-height: 0;
