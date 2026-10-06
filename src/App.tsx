@@ -9,7 +9,7 @@ import {
   sessionSeeds,
   suggestions,
 } from './data'
-import { IconBoard, IconChat, IconChatPlus, IconChevron, IconClock, IconExternal, IconHand, IconLogo, IconMenu, IconNodes, IconPause, IconPlay, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
+import { IconBoard, IconChat, IconChatPlus, IconChevron, IconClock, IconLogo, IconMenu, IconNodes, IconPause, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
 import type {
   Artifact,
   BrowserTab,
@@ -25,7 +25,7 @@ import type {
 } from './types'
 import { LogPanel } from './LogPanel'
 import { MarketPage } from './MarketPage'
-import { ControlLabel, downloadArtifact, execLabel, NodeStrip, nowStamp, typeLabel } from './ui'
+import { downloadArtifact, execLabel, NodeStrip, nowStamp, typeLabel } from './ui'
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
@@ -73,6 +73,8 @@ export default function App() {
 
   const [panel, setPanel] = useState<WorkbenchTab>('flow')
   const [control, setControl] = useState<Control>('none')
+  /** 全局控制权所作用的应用标签；色点只挂在此标签上 */
+  const [controlTabId, setControlTabId] = useState<string | null>(null)
   const [todos, setTodos] = useState<Todo[]>(initialTodos)
   const [archived, setArchived] = useState<Todo[]>(initialArchived)
   const [archiveView, setArchiveView] = useState(false)
@@ -107,6 +109,11 @@ export default function App() {
   ])
   const [activeTab, setActiveTab] = useState('home')
   const [urlInput, setUrlInput] = useState('hengtai://apps')
+  const [customApps, setCustomApps] = useState<{ id: string; name: string; url: string; desc: string }[]>([])
+  const [addAppOpen, setAddAppOpen] = useState(false)
+  const [newAppName, setNewAppName] = useState('')
+  const [newAppUrl, setNewAppUrl] = useState('https://')
+  const allApps = useMemo(() => [...appShortcuts, ...customApps], [customApps])
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [logApp, setLogApp] = useState<'all' | string>('all')
   const [formFill, setFormFill] = useState<FillMap>({})
@@ -200,8 +207,15 @@ export default function App() {
     setCursor({ on: true, x: 120 + fillKeys.current.length * 18, y: 90 + fillKeys.current.length * 52 })
   }
 
-  const setTabControl = (c: Control) => {
-    setTabs((ts) => ts.map((t) => (t.id === activeTab ? { ...t, controlDot: c } : t)))
+  /** 控制权是工作台全局的；tabId 标明正在作用的应用页 */
+  const setSessionControl = (c: Control, tabId?: string | null) => {
+    setControl(c)
+    if (c === 'none') {
+      setControlTabId(null)
+      return
+    }
+    if (tabId !== undefined && tabId !== null) setControlTabId(tabId)
+    else setControlTabId((prev) => prev ?? activeTab)
   }
 
   const archiveTodos = (ids: string[], execBy: Todo['execBy']) => {
@@ -235,7 +249,6 @@ export default function App() {
     setTodos((list) => list.map((t) => (t.id === todo.id ? { ...t, state: 'running' } : t)))
     setPanel('app')
     setMobilePane('bench')
-    setControl('agent')
     setSubmitReady(false)
     setFormFill({})
     setCursor({ on: true, x: 80, y: 70 })
@@ -249,6 +262,7 @@ export default function App() {
     setTabs((ts) => [...ts.filter((t) => t.kind !== 'w3-form'), tab])
     setActiveTab(tab.id)
     setUrlInput(tab.url)
+    setSessionControl('agent', tab.id)
     say('user', fromDetail ? `对「${todo.title}」执行协同：汇总评审意见并起草结论` : `协同处理：${todo.title}`)
     setTyping(true)
     const artId = uid('f')
@@ -310,8 +324,7 @@ export default function App() {
     if (token !== runRef.current) return
     setTyping(false)
     setCursor((c) => ({ ...c, on: false }))
-    setControl('paused')
-    setTabControl('paused')
+    setSessionControl('paused', tab.id)
     setSubmitReady(true)
     pushLog({ actor: 'agent', action: '停在提交前，等待人工确认（不可逆）', level: 'pause', reversible: false, app: todo.system })
     setArtifacts((list) =>
@@ -332,7 +345,6 @@ export default function App() {
     setBatchMode(false)
     setPanel('app')
     setMobilePane('bench')
-    setControl('agent')
     setBatchReady(false)
     setBatchItems(items.map((t) => ({ ...t, state: 'running' })))
     setTodos((list) => list.map((t) => (ids.includes(t.id) ? { ...t, state: 'running' as const } : t)))
@@ -346,6 +358,7 @@ export default function App() {
     setTabs((ts) => [...ts.filter((t) => t.kind !== 'w3-batch'), tab])
     setActiveTab(tab.id)
     setUrlInput(tab.url)
+    setSessionControl('agent', tab.id)
     say('user', `批量审批（待我审批）· ${items.length} 条`)
     setTyping(true)
     for (let i = 0; i < items.length; i++) {
@@ -361,8 +374,7 @@ export default function App() {
     if (token !== runRef.current) return
     setTyping(false)
     setCursor((c) => ({ ...c, on: false }))
-    setControl('paused')
-    setTabControl('paused')
+    setSessionControl('paused', tab.id)
     setBatchReady(true)
     setBatchChecked(items.filter((t) => !t.reviewFlags?.needReview).map((t) => t.id))
     const need = items.filter((t) => t.reviewFlags?.needReview).length
@@ -393,8 +405,7 @@ export default function App() {
   async function runPageCollab() {
     abortRun()
     const token = runRef.current
-    setControl('agent')
-    setTabControl('agent')
+    setSessionControl('agent', activeTab)
     setTyping(true)
     say('user', '把这个页面里待审批的条目核对一下')
     const acts = ['读取当前页列表', '抽取金额与发票字段', '与预算科目比对', '预填同意意见（草稿）']
@@ -404,8 +415,7 @@ export default function App() {
     }
     if (token !== runRef.current) return
     setTyping(false)
-    setControl('paused')
-    setTabControl('paused')
+    setSessionControl('paused', activeTab)
     setSubmitReady(true)
     pushLog({ actor: 'agent', action: '停在审批提交前，等待确认', level: 'pause', reversible: false, app: urlInput })
     say('agent', '当前页核对完成。3 条金额一致，请确认是否提交。我不会代你点击审批。')
@@ -421,8 +431,7 @@ export default function App() {
 
   const doSubmit = (ids: string[]) => {
     pushLog({ actor: 'human', action: ids.length > 1 ? `确认批量提交 ${ids.length} 条（不可逆）` : '确认提交（不可逆）', level: 'ok', reversible: false, app: 'W3' })
-    setControl('human')
-    setTabControl('human')
+    setSessionControl('human')
     setSubmitReady(false)
     setBatchConfirm(false)
     setSubmitted(true)
@@ -452,31 +461,27 @@ export default function App() {
       say('agent', `「${t?.title}」已提交。该待办从你的列表移除并归档。若下一节点负责人不是你，将出现在「我的申请」跟踪里。可问我「刚刚核对出的差异有哪些」。`)
     }
     setTimeout(() => {
-      setControl('none')
-      setTabControl('none')
+      setSessionControl('none')
     }, 600)
   }
 
   const pauseAgent = () => {
     abortRun()
     setTyping(false)
-    setControl('paused')
-    setTabControl('paused')
+    setSessionControl('paused')
     pushLog({ actor: 'human', action: '暂停 Agent', level: 'pause', reversible: true })
     say('system', '已暂停。可接管修改，或交还 Agent 继续可逆步骤。')
   }
   const takeover = () => {
     abortRun()
     setTyping(false)
-    setControl('human')
-    setTabControl('human')
+    setSessionControl('human')
     pushLog({ actor: 'human', action: '接管页面操作', level: 'info', reversible: true })
   }
   const returnAgent = () => {
     pushLog({ actor: 'human', action: '交还 Agent', level: 'info', reversible: true })
     if (submitReady || batchReady) {
-      setControl('paused')
-      setTabControl('paused')
+      setSessionControl('paused')
       say('agent', '可逆步骤已完成，仍停在提交前。请你确认不可逆操作。')
       return
     }
@@ -485,8 +490,7 @@ export default function App() {
       runSingleCollab(t)
       return
     }
-    setControl('agent')
-    setTabControl('agent')
+    setSessionControl('agent')
     runPageCollab()
   }
 
@@ -501,8 +505,7 @@ export default function App() {
     setSubmitted(false)
     setBatchReady(false)
     setBatchItems([])
-    setControl('none')
-    setTabControl('none')
+    setSessionControl('none')
   }
 
   const restoreTo = (id: string, opts: { silent?: boolean; dropSelf?: boolean } = {}) => {
@@ -528,14 +531,12 @@ export default function App() {
       setSubmitReady(true)
       setSubmitted(false)
       setBatchReady(anchor.action.includes('批量'))
-      setControl('paused')
-      setTabControl('paused')
+      setSessionControl('paused')
     } else if (removed.some((l) => l.level === 'pause' || l.action.includes('提交'))) {
       setSubmitReady(false)
       setSubmitted(false)
       setBatchReady(false)
-      setControl('none')
-      setTabControl('none')
+      setSessionControl('none')
     }
     const label = dropSelf ? `撤销「${target.action}」及之后步骤` : `回退到检查点：${target.action}`
     pushLog({ actor: 'human', action: label, level: 'ok', reversible: false })
@@ -638,27 +639,40 @@ export default function App() {
     say('agent', '可以从右侧「流程活动」点协同处理，或打开应用后让我处理当前页。不可逆操作我会停下来等你。')
   }
 
-  const goUrl = () => {
-    let url = urlInput.trim()
-    if (!url) return
-    if (!/^https?:|^hengtai:/.test(url)) url = 'https://' + url
-    setUrlInput(url)
-    const known = url.includes('w3') ? 'w3' : url.includes('ebuy') ? 'ebuy' : 'external'
+  const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0]
+  const file = artifacts.find((a) => a.id === fileId) || artifacts[0]
+
+  const openAppTab = (a: { id: string; name: string; url: string }, source: '应用中心' | '新增应用') => {
+    const kind: BrowserTab['kind'] =
+      a.id === 'w3' || a.url.includes('w3') ? 'w3' : a.id === 'ebuy' || a.url.includes('ebuy') ? 'ebuy' : 'external'
     const tab: BrowserTab = {
       id: uid('tab'),
-      title: known === 'w3' ? 'W3' : known === 'ebuy' ? 'eBuy' : new URL(url, 'https://x').hostname,
-      url,
-      kind: known === 'w3' ? 'w3' : known === 'ebuy' ? 'ebuy' : 'external',
+      title: a.name,
+      url: a.url,
+      kind,
       controlDot: 'human',
     }
     setTabs((ts) => [...ts, tab])
     setActiveTab(tab.id)
-    setControl('human')
-    pushLog({ actor: 'human', action: `打开 ${url}`, level: 'info', reversible: true, app: url })
+    setUrlInput(a.url)
+    if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
+    setPanel('app')
+    setMobilePane('bench')
+    pushLog({ actor: 'human', action: `${source}打开 ${a.name}`, level: 'info', reversible: true, app: a.url })
   }
 
-  const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0]
-  const file = artifacts.find((a) => a.id === fileId) || artifacts[0]
+  const submitNewApp = () => {
+    const name = newAppName.trim()
+    let url = newAppUrl.trim()
+    if (!name || !url) return
+    if (!/^https?:|^hengtai:/i.test(url)) url = 'https://' + url
+    const app = { id: uid('app'), name, url, desc: '自定义应用' }
+    setCustomApps((list) => [...list, app])
+    setAddAppOpen(false)
+    setNewAppName('')
+    setNewAppUrl('https://')
+    openAppTab(app, '新增应用')
+  }
   const shownArchive = archived.filter((t) => archiveFilter === 'all' || t.execBy === archiveFilter)
 
   const stats = useMemo(
@@ -802,9 +816,7 @@ export default function App() {
           </button>
           <div className="chat-head-main">
             <h1>{sessionList.find((s) => s.id === sessionId)?.title || '衡台 · 人机协同工作台'}</h1>
-            <div className="sub">对话编排意图 · 右侧是人和 Agent 共用的现场</div>
           </div>
-          <span className="pill">模式 A · 决策接力</span>
         </header>
         <div className="messages">
               {messages.map((m, i) => (
@@ -910,19 +922,51 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div className="control-bar">
-            <ControlLabel control={control} />
-            <button className="icon-btn" title="暂停 Agent" disabled={control !== 'agent'} onClick={pauseAgent}>
-              <IconPause />
-            </button>
-            <button className="icon-btn" title="我接管" disabled={control === 'human' || control === 'none'} onClick={takeover}>
-              <IconHand />
-            </button>
-            <button className="icon-btn" title="交还 Agent" disabled={control !== 'human'} onClick={returnAgent}>
-              <IconPlay />
-            </button>
-          </div>
         </div>
+        {control !== 'none' && (
+          <div className={`control-strip ${control}`} title="工作台全局控制权：同时只有一方在操作现场">
+            <div className="control-strip-main">
+              <i className="control-dot" />
+              <div className="control-strip-copy">
+                <strong>
+                  {{
+                    agent: 'Agent 操作中',
+                    human: '你在操作',
+                    paused: '已暂停，等待确认',
+                    none: '',
+                  }[control]}
+                </strong>
+                {(control === 'agent' || control === 'paused' || control === 'human') && controlTabId && (
+                  <span>{tabs.find((t) => t.id === controlTabId)?.title || '当前应用'}</span>
+                )}
+              </div>
+            </div>
+            {control === 'agent' && (
+              <div className="ctrl-actions">
+                <button type="button" className="btn" onClick={pauseAgent}>
+                  暂停
+                </button>
+                <button type="button" className="btn" onClick={takeover}>
+                  我接管
+                </button>
+              </div>
+            )}
+            {control === 'paused' && (
+              <div className="ctrl-actions">
+                <button type="button" className="btn" onClick={takeover}>
+                  我接管修改
+                </button>
+              </div>
+            )}
+            {control === 'human' && (
+              <div className="ctrl-actions">
+                <button type="button" className="btn primary" onClick={returnAgent}>
+                  交还 Agent
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="bench-body">
           {panel === 'flow' && (
@@ -1070,7 +1114,12 @@ export default function App() {
                         setUrlInput(t.url)
                       }}
                     >
-                      <span className={`cdot ${t.controlDot}`} />
+                      {t.id === controlTabId && (control === 'agent' || control === 'paused') && (
+                        <span
+                          className={`cdot ${control}`}
+                          title={control === 'agent' ? 'Agent 操作中' : '已暂停，待确认'}
+                        />
+                      )}
                       {t.title}
                     </button>
                     {t.id !== 'home' && (
@@ -1083,6 +1132,10 @@ export default function App() {
                             setActiveTab(next[0].id)
                             setUrlInput(next[0].url)
                           }
+                          if (controlTabId === t.id) {
+                            if (control === 'agent' || control === 'paused') setSessionControl(control, next[0].id)
+                            else setControlTabId(null)
+                          }
                         }}
                       >
                         ×
@@ -1090,54 +1143,6 @@ export default function App() {
                     )}
                   </div>
                 ))}
-                <button
-                  className="icon-btn"
-                  title="新标签"
-                  onClick={() => {
-                    const tab: BrowserTab = { id: uid('tab'), title: '新标签页', url: 'hengtai://apps', kind: 'home', controlDot: 'human' }
-                    setTabs((ts) => [...ts, tab])
-                    setActiveTab(tab.id)
-                    setUrlInput(tab.url)
-                    setControl('human')
-                  }}
-                >
-                  <IconPlus />
-                </button>
-              </div>
-              <div className="omnibox">
-                <div className="omni-nav">
-                  <button
-                    className="icon-btn"
-                    title="上一标签"
-                    onClick={() => {
-                      const i = tabs.findIndex((t) => t.id === activeTab)
-                      const prev = tabs[Math.max(0, i - 1)]
-                      setActiveTab(prev.id)
-                      setUrlInput(prev.url)
-                    }}
-                  >
-                    ←
-                  </button>
-                  <button className="icon-btn" onClick={() => {}}>
-                    ↻
-                  </button>
-                  <input
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && goUrl()}
-                  />
-                  <button className="btn" onClick={goUrl}>
-                    前往
-                  </button>
-                </div>
-                <div className="omni-actions">
-                  <a className="btn" href={currentTab.url.startsWith('http') ? currentTab.url : 'https://w3.example.com'} target="_blank" rel="noreferrer">
-                    <IconExternal /> 外部打开
-                  </a>
-                  <button className="btn primary" onClick={runPageCollab} disabled={control === 'agent'}>
-                    让 Agent 处理当前页
-                  </button>
-                </div>
               </div>
               <div className="page">
                 {cursor.on && control === 'agent' && (
@@ -1145,28 +1150,18 @@ export default function App() {
                 )}
                 {currentTab.kind === 'home' && (
                   <div className="mock-app">
-                    <h2>应用中心</h2>
-                    <p className="hint">点选内网应用，或在地址栏输入网址。打开后控制权默认归你。</p>
+                    <div className="home-head">
+                      <div>
+                        <h2>应用中心</h2>
+                        <p className="hint">点选应用打开；进入页面后默认由 Agent 协同处理当前上下文。</p>
+                      </div>
+                      <button className="btn" onClick={() => setAddAppOpen(true)}>
+                        <IconPlus /> 新增应用
+                      </button>
+                    </div>
                     <div className="home-apps">
-                      {appShortcuts.map((a) => (
-                        <button
-                          key={a.id}
-                          className="app-tile"
-                          onClick={() => {
-                            const tab: BrowserTab = {
-                              id: uid('tab'),
-                              title: a.name,
-                              url: a.url,
-                              kind: a.id === 'w3' ? 'w3' : a.id === 'ebuy' ? 'ebuy' : 'external',
-                              controlDot: 'human',
-                            }
-                            setTabs((ts) => [...ts, tab])
-                            setActiveTab(tab.id)
-                            setUrlInput(a.url)
-                            setControl('human')
-                            pushLog({ actor: 'human', action: `从应用中心打开 ${a.name}`, level: 'info', reversible: true, app: a.url })
-                          }}
-                        >
+                      {allApps.map((a) => (
+                        <button key={a.id} className="app-tile" onClick={() => openAppTab(a, '应用中心')}>
                           <b>{a.name}</b>
                           <span>{a.desc}</span>
                         </button>
@@ -1219,13 +1214,10 @@ export default function App() {
                 {currentTab.kind === 'external' && (
                   <div className="placeholder">
                     <h3>演示环境占位页</h3>
-                    <p>内网或外部站点无法在此 iframe 中加载，已记录地址，避免白屏。</p>
+                    <p>该站点在演示中以内嵌页展示；可在上方交给 Agent 处理当前上下文。</p>
                     <p>
                       <code>{currentTab.url}</code>
                     </p>
-                    <a className="btn primary" href={currentTab.url} target="_blank" rel="noreferrer">
-                      在外部浏览器打开
-                    </a>
                   </div>
                 )}
               </div>
@@ -1294,7 +1286,7 @@ export default function App() {
                         setUrlInput(tab.url)
                         setPanel('app')
                         setMobilePane('bench')
-                        setControl('human')
+                        if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
                         say('agent', `已在应用面板打开 ${file.name}，控制权归你。`)
                       }}
                     >
@@ -1358,16 +1350,59 @@ export default function App() {
         </div>
       )}
 
+      {addAppOpen && (
+        <div className="overlay" onClick={() => setAddAppOpen(false)}>
+          <div className="sheet add-app-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <div>
+                <h2>新增应用</h2>
+                <div className="hint">添加到应用中心并打开为标签页</div>
+              </div>
+              <button type="button" className="sheet-close" aria-label="关闭" onClick={() => setAddAppOpen(false)}>
+                ×
+              </button>
+            </div>
+            <div className="form" style={{ marginTop: 12 }}>
+              <div className="field">
+                <label>应用名称</label>
+                <input
+                  className="val"
+                  value={newAppName}
+                  placeholder="例如：费控报销"
+                  onChange={(e) => setNewAppName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label>应用地址</label>
+                <input
+                  className="val"
+                  value={newAppUrl}
+                  placeholder="https:// 或 hengtai://"
+                  onChange={(e) => setNewAppUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && submitNewApp()}
+                />
+              </div>
+              <div className="row-actions" style={{ marginBottom: 0 }}>
+                <button className="btn primary" disabled={!newAppName.trim() || !newAppUrl.trim()} onClick={submitNewApp}>
+                  添加并打开
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detail && (
         <div className="overlay" onClick={() => setDetail(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="row-actions" style={{ justifyContent: 'space-between' }}>
+            <div className="sheet-head">
               <div>
                 <h2>{detail.title}</h2>
                 <div className="hint">{detail.subtitle} · {detail.system}</div>
               </div>
-              <button className="btn" onClick={() => setDetail(null)}>
-                关闭
+              <button type="button" className="sheet-close" aria-label="关闭" onClick={() => setDetail(null)}>
+                ×
               </button>
             </div>
             {detail.relation === 'mine_todo' ? (
@@ -1420,7 +1455,7 @@ export default function App() {
               <div className="ctx">
                 <div className="section-h">Agent 可代办的流程操作</div>
                 <div className="row-actions">
-                  <button className="btn primary" onClick={() => runSingleCollab(detail, true)}>
+                  <button className="btn" onClick={() => runSingleCollab(detail, true)}>
                     汇总评审意见
                   </button>
                   <button className="btn" onClick={() => runSingleCollab(detail, true)}>

@@ -47,13 +47,6 @@ export function IconLogo() {
     </svg>
   )
 }
-export function IconExternal() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-      <path d="M14 5h5v5M19 5l-8 8M10 6H6v12h12v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  )
-}
 export function IconChatPlus() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
