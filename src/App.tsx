@@ -9,7 +9,7 @@ import {
   sessionSeeds,
   suggestions,
 } from './data'
-import { IconBoard, IconChat, IconChatPlus, IconChevron, IconClock, IconLogo, IconMenu, IconNodes, IconPause, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
+import { IconBoard, IconChat, IconChatPlus, IconChevron, IconChevronDown, IconClock, IconLogo, IconMenu, IconMore, IconNodes, IconPause, IconPencil, IconPlus, IconRestore, IconSend, IconShield, IconSpinner, IconTrash } from './icons'
 import type {
   Artifact,
   ArtifactSource,
@@ -30,6 +30,12 @@ import { downloadArtifact, execLabel, NodeStrip, nowStamp, sourceLabel, typeLabe
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
+const AGENT_MODES = [
+  { id: 'auto', label: '自动', tip: '按任务自动选择节奏' },
+  { id: 'fast', label: '快速', tip: '少确认，优先推进' },
+  { id: 'balanced', label: '均衡', tip: '速度与确认平衡' },
+  { id: 'careful', label: '优选', tip: '关键步骤多确认' },
+] as const
 
 function sessionLiveStatus(p: {
   control: Control
@@ -93,6 +99,10 @@ export default function App() {
   const [railNav, setRailNav] = useState<'assistant' | 'skills' | 'schedule'>('assistant')
   const [foldTasks, setFoldTasks] = useState(false)
   const [foldSpaces, setFoldSpaces] = useState(false)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
+  const [taskMenuId, setTaskMenuId] = useState<string | null>(null)
+  const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null)
   const [mobilePane, setMobilePane] = useState<'chat' | 'bench'>('chat')
   const [railOpen, setRailOpen] = useState(false)
   const [inbox, setInbox] = useState<Record<string, ChatMessage[]>>({
@@ -104,6 +114,12 @@ export default function App() {
   const messages = inbox[sessionId] || [welcome()]
   const [draft, setDraft] = useState('')
   const [typing, setTyping] = useState(false)
+  const [agentMode, setAgentMode] = useState<(typeof AGENT_MODES)[number]['id']>('balanced')
+  const [modeMenuOpen, setModeMenuOpen] = useState(false)
+  const [composerFocused, setComposerFocused] = useState(false)
+  const [phIndex, setPhIndex] = useState(0)
+  const [phVisible, setPhVisible] = useState(true)
+  const composerInputRef = useRef<HTMLTextAreaElement>(null)
 
   const [tabs, setTabs] = useState<BrowserTab[]>([
     { id: 'home', title: '应用中心', url: 'hengtai://apps', kind: 'home', controlDot: 'none' },
@@ -160,6 +176,22 @@ export default function App() {
   useEffect(() => {
     msgEnd.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
+
+  useEffect(() => {
+    if (draft.trim() || suggestions.length === 0) return
+    let fadeTimer: number | undefined
+    const tick = window.setInterval(() => {
+      setPhVisible(false)
+      fadeTimer = window.setTimeout(() => {
+        setPhIndex((i) => (i + 1) % suggestions.length)
+        setPhVisible(true)
+      }, 220)
+    }, 3200)
+    return () => {
+      window.clearInterval(tick)
+      if (fadeTimer) window.clearTimeout(fadeTimer)
+    }
+  }, [draft])
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -573,8 +605,24 @@ export default function App() {
     say('agent', `已勾选完成「${t.title}」，记为人工执行并进入归档。`)
   }
 
+  useEffect(() => {
+    if (!taskMenuId) return
+    const close = () => setTaskMenuId(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [taskMenuId])
+
+  useEffect(() => {
+    if (!modeMenuOpen) return
+    const close = () => setModeMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [modeMenuOpen])
+
   const switchSession = (id: string) => {
     setSessionId(id)
+    setEditingSessionId(null)
+    setTaskMenuId(null)
     setSessionList((list) => list.map((s) => (s.id === id ? { ...s, unread: false } : s)))
   }
 
@@ -585,6 +633,52 @@ export default function App() {
     setInbox((box) => ({ ...box, [id]: [welcome()] }))
     setSessionId(id)
     setRailNav('assistant')
+  }
+
+  const startRenameSession = (s: Session) => {
+    setEditingSessionId(s.id)
+    setEditingTitle(s.title)
+  }
+
+  const commitRenameSession = () => {
+    if (!editingSessionId) return
+    const next = editingTitle.trim().slice(0, 28) || '未命名任务'
+    const prev = sessionList.find((s) => s.id === editingSessionId)?.title
+    setSessionList((list) => list.map((s) => (s.id === editingSessionId ? { ...s, title: next } : s)))
+    if (prev && prev !== next) {
+      setArtifacts((list) => list.map((a) => (a.session === prev ? { ...a, session: next } : a)))
+    }
+    setEditingSessionId(null)
+  }
+
+  const requestDeleteSession = (id: string) => {
+    setTaskMenuId(null)
+    setDeleteSessionId(id)
+  }
+
+  const confirmDeleteSession = () => {
+    const id = deleteSessionId
+    if (!id) return
+    const target = sessionList.find((s) => s.id === id)
+    if (!target) {
+      setDeleteSessionId(null)
+      return
+    }
+    const rest = sessionList.filter((s) => s.id !== id)
+    setSessionList(rest)
+    setInbox((box) => {
+      const next = { ...box }
+      delete next[id]
+      return next
+    })
+    setArtifacts((list) => list.filter((a) => a.session !== target.title))
+    setEditingSessionId(null)
+    setDeleteSessionId(null)
+    if (sessionId === id) {
+      const fallback = rest[0]
+      if (fallback) setSessionId(fallback.id)
+      else newSession()
+    }
   }
 
   const send = (text?: string) => {
@@ -786,30 +880,96 @@ export default function App() {
             (sessionList.length ? (
               sessionList.map((s) => {
                 const st = s.id === sessionId ? currentStatus : s.status
+                const editing = editingSessionId === s.id
                 return (
-                  <button
+                  <div
                     key={s.id}
                     className={`task-item ${s.id === sessionId && railNav === 'assistant' ? 'active' : ''}`}
-                    onClick={() => {
-                      switchSession(s.id)
-                      setRailNav('assistant')
-                      setRailOpen(false)
-                      setMobilePane('chat')
-                    }}
                   >
-                    <span className="task-title">{s.title}</span>
-                    {st === 'confirm' && (
-                      <span className="task-badge">
-                        待确认
-                        <i />
-                      </span>
+                    {editing ? (
+                      <input
+                        className="task-rename"
+                        value={editingTitle}
+                        autoFocus
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={commitRenameSession}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            commitRenameSession()
+                          }
+                          if (e.key === 'Escape') setEditingSessionId(null)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="task-main"
+                        onClick={() => {
+                          switchSession(s.id)
+                          setRailNav('assistant')
+                          setRailOpen(false)
+                          setMobilePane('chat')
+                        }}
+                      >
+                        <span className="task-title">{s.title}</span>
+                      </button>
                     )}
-                    {st === 'running' && (
-                      <span className="task-spin" title="进行中">
-                        <IconSpinner />
-                      </span>
-                    )}
-                  </button>
+                    <div className="task-side">
+                      {st === 'confirm' && (
+                        <span className="task-badge">
+                          待确认
+                          <i />
+                        </span>
+                      )}
+                      {st === 'running' && (
+                        <span className="task-spin" title="进行中">
+                          <IconSpinner />
+                        </span>
+                      )}
+                      <div className={`task-actions ${taskMenuId === s.id ? 'open' : ''}`}>
+                        <button
+                          type="button"
+                          className="task-more"
+                          title="更多"
+                          aria-label="更多操作"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTaskMenuId((id) => (id === s.id ? null : s.id))
+                          }}
+                        >
+                          <IconMore />
+                        </button>
+                        {taskMenuId === s.id && (
+                          <div className="task-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setTaskMenuId(null)
+                                startRenameSession(s)
+                              }}
+                            >
+                              <IconPencil />
+                              重命名
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="danger"
+                              onClick={() => {
+                                requestDeleteSession(s.id)
+                              }}
+                            >
+                              <IconTrash />
+                              删除任务
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )
               })
             ) : (
@@ -882,34 +1042,123 @@ export default function App() {
         </div>
         <div className="composer">
           <div className="composer-box">
-            <div className="chips">
-              {suggestions.map((s) => (
-                <button key={s} className="chip" onClick={() => send(s)}>
-                  {s}
-                </button>
-              ))}
-            </div>
-            <div className="composer-row">
+            <div className={`composer-field${draft.trim() ? ' filled' : ''}${composerFocused ? ' focused' : ''}`}>
               <textarea
-                rows={2}
-                placeholder="描述任务，或让我处理当前页面…"
+                ref={composerInputRef}
+                rows={3}
+                aria-label="任务输入"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
+                onFocus={() => setComposerFocused(true)}
+                onBlur={() => setComposerFocused(false)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    send()
+                    if (control !== 'agent') send()
                   }
                 }}
               />
-              <button
-                className="send"
-                onClick={() => (control === 'agent' ? pauseAgent() : send())}
-                disabled={control !== 'agent' && !draft.trim()}
-                title={control === 'agent' ? '停止 Agent' : '发送'}
-              >
-                {control === 'agent' ? <IconPause /> : <IconSend />}
-              </button>
+              {!draft.trim() && (
+                <div
+                  className="composer-ph"
+                  aria-hidden
+                  onClick={() => composerInputRef.current?.focus()}
+                >
+                  <div className={`composer-ph-title${composerFocused ? ' is-hidden' : ''}`}>
+                    今天帮你做些什么？
+                  </div>
+                  <button
+                    type="button"
+                    className={`composer-ph-item${phVisible ? ' is-on' : ''}`}
+                    tabIndex={-1}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      const s = suggestions[phIndex]
+                      if (!s) return
+                      setDraft(s)
+                      requestAnimationFrame(() => composerInputRef.current?.focus())
+                    }}
+                  >
+                    {suggestions[phIndex]}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="composer-toolbar">
+              <div className="composer-tools">
+                <button
+                  type="button"
+                  className="tool-icon"
+                  title="填入一条建议"
+                  onClick={() => {
+                    const i = Math.floor(Math.random() * suggestions.length)
+                    setDraft(suggestions[i] || '')
+                  }}
+                >
+                  <IconPlus />
+                </button>
+                <button type="button" className="tool-pill" title="权限策略">
+                  <IconShield />
+                  <span>默认权限</span>
+                  <IconChevronDown />
+                </button>
+              </div>
+              <div className="composer-tools">
+                {(typing || control === 'agent') && (
+                  <span className="tool-spin" title="Agent 工作中">
+                    <IconSpinner />
+                  </span>
+                )}
+                <div className="mode-wrap">
+                  <button
+                    type="button"
+                    className="tool-pill mode-pill"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setModeMenuOpen((v) => !v)
+                    }}
+                  >
+                    <span className="brand-mark" aria-hidden>
+                      <IconLogo />
+                    </span>
+                    <span>{AGENT_MODES.find((m) => m.id === agentMode)?.label || '均衡'}</span>
+                    <IconChevronDown />
+                  </button>
+                  {modeMenuOpen && (
+                    <div className="mode-menu" role="listbox" onClick={(e) => e.stopPropagation()}>
+                      {AGENT_MODES.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={agentMode === m.id ? 'on' : ''}
+                          role="option"
+                          aria-selected={agentMode === m.id}
+                          onClick={() => {
+                            setAgentMode(m.id)
+                            setModeMenuOpen(false)
+                          }}
+                        >
+                          <span className="mode-label">
+                            <b>{m.label}</b>
+                            <em>{m.tip}</em>
+                          </span>
+                          {agentMode === m.id && <i className="mode-check">✓</i>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className={`send-round ${control === 'agent' ? 'stop' : ''}`}
+                  onClick={() => (control === 'agent' ? pauseAgent() : send())}
+                  disabled={control !== 'agent' && !draft.trim()}
+                  title={control === 'agent' ? '停止 Agent' : '发送'}
+                >
+                  {control === 'agent' ? <IconPause /> : <IconSend />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1404,6 +1653,27 @@ export default function App() {
               <p>把重复的待办预审设为每日提醒后，会显示在这里。</p>
             </div>
           </section>
+        </div>
+      )}
+
+      {deleteSessionId && (
+        <div className="overlay" onClick={() => setDeleteSessionId(null)}>
+          <div className="confirm-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="del-task-title">
+            <h2 id="del-task-title">删除任务</h2>
+            <p>
+              确定删除「{sessionList.find((s) => s.id === deleteSessionId)?.title || '该任务'}」？
+              <br />
+              对话与该任务产物也会一并移除，且不可恢复。
+            </p>
+            <div className="confirm-actions">
+              <button type="button" className="btn" onClick={() => setDeleteSessionId(null)}>
+                取消
+              </button>
+              <button type="button" className="btn danger" onClick={confirmDeleteSession}>
+                删除
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
