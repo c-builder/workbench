@@ -639,6 +639,24 @@ button { cursor: pointer; }
   background: #24342c; color: #d7e4dc; border: 1px solid #3d5348; border-radius: 6px;
   font-family: var(--mono); font-size: 11px;
 }
+.logs .btn {
+  color: #f3d89a;
+  border-color: rgba(232, 196, 122, 0.65);
+  background: rgba(232, 196, 122, 0.12);
+  font-size: 11px;
+  padding: 4px 10px;
+  font-family: inherit;
+}
+.logs .btn:hover:not(:disabled) {
+  background: rgba(232, 196, 122, 0.22);
+  color: #fff4d4;
+}
+.logs .btn:disabled {
+  color: #a8bdb2;
+  border-color: #3d5348;
+  background: transparent;
+  opacity: 1;
+}
 .confirm-list { font-size: 13px; padding-left: 18px; }
 .field textarea.val { width: 100%; min-height: 64px; resize: vertical; font-family: inherit; }
 .file-item.gen { opacity: .7; }
