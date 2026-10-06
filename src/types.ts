@@ -90,9 +90,12 @@ export interface ChatMessage {
   steps?: string[]
 }
 
+export type SessionStatus = 'confirm' | 'running' | 'idle'
+
 export interface Session {
   id: string
   title: string
   time: string
   unread?: boolean
+  status?: SessionStatus
 }

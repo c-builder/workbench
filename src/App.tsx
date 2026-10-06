@@ -9,7 +9,7 @@ import {
   sessionSeeds,
   suggestions,
 } from './data'
-import { IconAssistant, IconChatPlus, IconClock, IconExternal, IconHand, IconLogo, IconNodes, IconPause, IconPlay, IconPlus, IconSend } from './icons'
+import { IconChatPlus, IconChevron, IconClock, IconExternal, IconHand, IconLogo, IconNodes, IconPause, IconPlay, IconPlus, IconSend, IconSpinner } from './icons'
 import type {
   Artifact,
   BrowserTab,
@@ -22,7 +22,8 @@ import type {
   Todo,
   WorkbenchTab,
 } from './types'
-import { ControlLabel, execLabel, nowStamp, NodeStrip, typeLabel } from './ui'
+import { MarketPage } from './MarketPage'
+import { ControlLabel, execLabel, NodeStrip, nowStamp, typeLabel } from './ui'
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
@@ -73,6 +74,8 @@ export default function App() {
   const [sessionList, setSessionList] = useState<Session[]>(seedSessions)
   const [sessionId, setSessionId] = useState('s1')
   const [railNav, setRailNav] = useState<'assistant' | 'skills' | 'schedule'>('assistant')
+  const [foldTasks, setFoldTasks] = useState(false)
+  const [foldSpaces, setFoldSpaces] = useState(false)
   const [inbox, setInbox] = useState<Record<string, ChatMessage[]>>({
     s1: seedMessages('s1'),
     s2: seedMessages('s2'),
@@ -490,7 +493,7 @@ export default function App() {
 
   const newSession = () => {
     const id = uid('s')
-    const s: Session = { id, title: '新任务', time: '刚刚' }
+    const s: Session = { id, title: '新任务', time: '刚刚', status: 'idle' }
     setSessionList((list) => [s, ...list])
     setInbox((box) => ({ ...box, [id]: [welcome()] }))
     setSessionId(id)
@@ -601,10 +604,6 @@ export default function App() {
           新建任务
         </button>
         <nav className="rail-nav">
-          <button className={railNav === 'assistant' ? 'active' : ''} onClick={() => setRailNav('assistant')}>
-            <IconAssistant />
-            助理
-          </button>
           <button className={railNav === 'skills' ? 'active' : ''} onClick={() => setRailNav('skills')}>
             <IconNodes />
             专家·技能·连接器
@@ -615,45 +614,43 @@ export default function App() {
           </button>
         </nav>
         <div className="rail-body">
-          {railNav === 'assistant' &&
+          <button className={`task-fold ${foldTasks ? 'closed' : ''}`} onClick={() => setFoldTasks((v) => !v)}>
+            <IconChevron />
+            任务 ({sessionList.length})
+          </button>
+          {!foldTasks &&
             (sessionList.length ? (
               sessionList.map((s) => (
                 <button
                   key={s.id}
-                  className={`task-item ${s.id === sessionId ? 'active' : ''}`}
-                  onClick={() => switchSession(s.id)}
+                  className={`task-item ${s.id === sessionId && railNav === 'assistant' ? 'active' : ''}`}
+                  onClick={() => {
+                    switchSession(s.id)
+                    setRailNav('assistant')
+                  }}
                 >
                   <span className="task-title">{s.title}</span>
-                  <span className="task-time">{s.time}</span>
+                  {s.status === 'confirm' && (
+                    <span className="task-badge">
+                      待确认
+                      <i />
+                    </span>
+                  )}
+                  {s.status === 'running' && (
+                    <span className="task-spin" title="进行中">
+                      <IconSpinner />
+                    </span>
+                  )}
                 </button>
               ))
             ) : (
-              <div className="rail-empty">
-                <b>暂无任务</b>
-                <p>点击上方按钮开始新任务</p>
-              </div>
+              <div className="rail-muted">暂无任务</div>
             ))}
-          {railNav === 'skills' && (
-            <div className="skill-list">
-              {[
-                { n: 'W3 审批', d: '待办读取 / 预填 / 提交前交接' },
-                { n: 'eBuy 采购', d: '供应商与订单只读跟踪' },
-                { n: '费控报销', d: '发票 OCR 比对' },
-                { n: '行政门户', d: '会议室冲突检索' },
-              ].map((x) => (
-                <div key={x.n} className="skill-card">
-                  <b>{x.n}</b>
-                  <span>{x.d}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {railNav === 'schedule' && (
-            <div className="rail-empty">
-              <b>暂无定时任务</b>
-              <p>可把重复待办预审设为每日提醒</p>
-            </div>
-          )}
+          <button className={`task-fold ${foldSpaces ? 'closed' : ''}`} onClick={() => setFoldSpaces((v) => !v)}>
+            <IconChevron />
+            空间 (0)
+          </button>
+          {!foldSpaces && <div className="rail-muted">暂无任务</div>}
         </div>
         <div className="rail-foot">
           <div className="rail-user">{ME.slice(0, 1)}</div>
@@ -1154,6 +1151,34 @@ export default function App() {
           )}
         </div>
       </aside>
+
+      {railNav === 'skills' && (
+        <div className="market-layer">
+          <MarketPage
+            onUse={(title) => {
+              setRailNav('assistant')
+              say('user', `启用「${title}」`)
+              say(
+                'agent',
+                `已把「${title}」加入当前任务。专家 / 技能 / 连接器提供可复用能力，不会代替应用中心里的 W3、eBuy 等系统入口。处理待办仍从右侧流程活动或应用进入。`,
+              )
+            }}
+          />
+        </div>
+      )}
+      {railNav === 'schedule' && (
+        <div className="market-layer">
+          <section className="market">
+            <header className="market-bar">
+              <h2 className="market-title">定时任务</h2>
+            </header>
+            <div className="rail-empty" style={{ minHeight: '60vh' }}>
+              <b>暂无定时任务</b>
+              <p>把重复的待办预审设为每日提醒后，会显示在这里。</p>
+            </div>
+          </section>
+        </div>
+      )}
 
       {detail && (
         <div className="overlay" onClick={() => setDetail(null)}>
