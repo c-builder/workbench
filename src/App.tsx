@@ -9,7 +9,7 @@ import {
   sessionSeeds,
   suggestions,
 } from './data'
-import { IconChatPlus, IconChevron, IconClock, IconExternal, IconHand, IconLogo, IconNodes, IconPause, IconPlay, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
+import { IconBoard, IconChat, IconChatPlus, IconChevron, IconClock, IconExternal, IconHand, IconLogo, IconMenu, IconNodes, IconPause, IconPlay, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
 import type {
   Artifact,
   BrowserTab,
@@ -90,6 +90,8 @@ export default function App() {
   const [railNav, setRailNav] = useState<'assistant' | 'skills' | 'schedule'>('assistant')
   const [foldTasks, setFoldTasks] = useState(false)
   const [foldSpaces, setFoldSpaces] = useState(false)
+  const [mobilePane, setMobilePane] = useState<'chat' | 'bench'>('chat')
+  const [railOpen, setRailOpen] = useState(false)
   const [inbox, setInbox] = useState<Record<string, ChatMessage[]>>({
     s1: seedMessages('s1'),
     s2: seedMessages('s2'),
@@ -232,6 +234,7 @@ export default function App() {
     fillKeys.current = []
     setTodos((list) => list.map((t) => (t.id === todo.id ? { ...t, state: 'running' } : t)))
     setPanel('app')
+    setMobilePane('bench')
     setControl('agent')
     setSubmitReady(false)
     setFormFill({})
@@ -328,6 +331,7 @@ export default function App() {
     const token = runRef.current
     setBatchMode(false)
     setPanel('app')
+    setMobilePane('bench')
     setControl('agent')
     setBatchReady(false)
     setBatchItems(items.map((t) => ({ ...t, state: 'running' })))
@@ -615,6 +619,7 @@ export default function App() {
     }
     if (q.includes('核对') || q.includes('当前页') || q.includes('这个页面')) {
       setPanel('app')
+      setMobilePane('bench')
       runPageCollab()
       return
     }
@@ -669,6 +674,7 @@ export default function App() {
   const jumpStat = (label: string) => {
     setArchiveView(false)
     setPanel('flow')
+    setMobilePane('bench')
     if (label === '我的申请') setFoldInit(false)
     else setFoldMine(false)
     window.setTimeout(() => {
@@ -686,9 +692,10 @@ export default function App() {
 
   return (
     <div
-      className="app-shell"
+      className={`app-shell mobile-${mobilePane}${railOpen ? ' rail-open' : ''}`}
       style={{ gridTemplateColumns: `248px minmax(0, ${100 - bench}fr) 6px minmax(0, ${bench}fr)` }}
     >
+      {railOpen && <button type="button" className="rail-scrim" aria-label="关闭菜单" onClick={() => setRailOpen(false)} />}
       <aside className="rail">
         <div className="rail-brand">
           <div className="logo" title="衡台">
@@ -698,17 +705,39 @@ export default function App() {
             <b>衡台</b>
             <span>工作助手</span>
           </div>
+          <button type="button" className="rail-close" onClick={() => setRailOpen(false)}>
+            关闭
+          </button>
         </div>
-        <button className="new-task" onClick={newSession}>
+        <button
+          className="new-task"
+          onClick={() => {
+            newSession()
+            setRailOpen(false)
+            setMobilePane('chat')
+          }}
+        >
           <IconChatPlus />
           新建任务
         </button>
         <nav className="rail-nav">
-          <button className={railNav === 'skills' ? 'active' : ''} onClick={() => setRailNav('skills')}>
+          <button
+            className={railNav === 'skills' ? 'active' : ''}
+            onClick={() => {
+              setRailNav('skills')
+              setRailOpen(false)
+            }}
+          >
             <IconNodes />
             专家·技能·连接器
           </button>
-          <button className={railNav === 'schedule' ? 'active' : ''} onClick={() => setRailNav('schedule')}>
+          <button
+            className={railNav === 'schedule' ? 'active' : ''}
+            onClick={() => {
+              setRailNav('schedule')
+              setRailOpen(false)
+            }}
+          >
             <IconClock />
             定时任务
           </button>
@@ -729,6 +758,8 @@ export default function App() {
                     onClick={() => {
                       switchSession(s.id)
                       setRailNav('assistant')
+                      setRailOpen(false)
+                      setMobilePane('chat')
                     }}
                   >
                     <span className="task-title">{s.title}</span>
@@ -766,7 +797,10 @@ export default function App() {
 
       <section className="chat">
         <header className="chat-head">
-          <div>
+          <button type="button" className="mobile-icon" aria-label="打开任务列表" onClick={() => setRailOpen(true)}>
+            <IconMenu />
+          </button>
+          <div className="chat-head-main">
             <h1>{sessionList.find((s) => s.id === sessionId)?.title || '衡台 · 人机协同工作台'}</h1>
             <div className="sub">对话编排意图 · 右侧是人和 Agent 共用的现场</div>
           </div>
@@ -784,8 +818,14 @@ export default function App() {
                         {s}
                       </div>
                     ))}
-                    <button className="btn ghost" onClick={() => setPanel('app')}>
-                      在工作台查看现场
+                    <button
+                      className="btn ghost"
+                      onClick={() => {
+                        setPanel('app')
+                        setMobilePane('bench')
+                      }}
+                    >
+                      去工作台确认
                     </button>
                   </div>
                 )}
@@ -802,7 +842,7 @@ export default function App() {
           ))}
           {typing && (
             <div className="msg agent">
-              <div className="bubble typing">正在操作工作台现场…</div>
+              <div className="bubble typing">正在工作台操作…</div>
             </div>
           )}
           <div ref={msgEnd} />
@@ -846,6 +886,9 @@ export default function App() {
 
       <aside className="bench">
         <div className="bench-head">
+          <button type="button" className="mobile-icon bench-menu" aria-label="打开任务列表" onClick={() => setRailOpen(true)}>
+            <IconMenu />
+          </button>
           <div className="tabs">
             {(
               [
@@ -854,7 +897,14 @@ export default function App() {
                 ['files', '产物与文件', artifacts.length],
               ] as const
             ).map(([id, label, count]) => (
-              <button key={id} className={`tab ${panel === id ? 'active' : ''}`} onClick={() => setPanel(id)}>
+              <button
+                key={id}
+                className={`tab ${panel === id ? 'active' : ''}`}
+                onClick={() => {
+                  setPanel(id)
+                  setMobilePane('bench')
+                }}
+              >
                 {label}
                 <span className="count">{count}</span>
               </button>
@@ -1055,35 +1105,39 @@ export default function App() {
                 </button>
               </div>
               <div className="omnibox">
-                <button
-                  className="icon-btn"
-                  title="上一标签"
-                  onClick={() => {
-                    const i = tabs.findIndex((t) => t.id === activeTab)
-                    const prev = tabs[Math.max(0, i - 1)]
-                    setActiveTab(prev.id)
-                    setUrlInput(prev.url)
-                  }}
-                >
-                  ←
-                </button>
-                <button className="icon-btn" onClick={() => {}}>
-                  ↻
-                </button>
-                <input
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && goUrl()}
-                />
-                <button className="btn" onClick={goUrl}>
-                  前往
-                </button>
-                <a className="btn" href={currentTab.url.startsWith('http') ? currentTab.url : 'https://w3.example.com'} target="_blank" rel="noreferrer">
-                  <IconExternal /> 外部打开
-                </a>
-                <button className="btn primary" onClick={runPageCollab} disabled={control === 'agent'}>
-                  让 Agent 处理当前页
-                </button>
+                <div className="omni-nav">
+                  <button
+                    className="icon-btn"
+                    title="上一标签"
+                    onClick={() => {
+                      const i = tabs.findIndex((t) => t.id === activeTab)
+                      const prev = tabs[Math.max(0, i - 1)]
+                      setActiveTab(prev.id)
+                      setUrlInput(prev.url)
+                    }}
+                  >
+                    ←
+                  </button>
+                  <button className="icon-btn" onClick={() => {}}>
+                    ↻
+                  </button>
+                  <input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && goUrl()}
+                  />
+                  <button className="btn" onClick={goUrl}>
+                    前往
+                  </button>
+                </div>
+                <div className="omni-actions">
+                  <a className="btn" href={currentTab.url.startsWith('http') ? currentTab.url : 'https://w3.example.com'} target="_blank" rel="noreferrer">
+                    <IconExternal /> 外部打开
+                  </a>
+                  <button className="btn primary" onClick={runPageCollab} disabled={control === 'agent'}>
+                    让 Agent 处理当前页
+                  </button>
+                </div>
               </div>
               <div className="page">
                 {cursor.on && control === 'agent' && (
@@ -1239,6 +1293,7 @@ export default function App() {
                         setActiveTab(tab.id)
                         setUrlInput(tab.url)
                         setPanel('app')
+                        setMobilePane('bench')
                         setControl('human')
                         say('agent', `已在应用面板打开 ${file.name}，控制权归你。`)
                       }}
@@ -1253,6 +1308,27 @@ export default function App() {
           )}
         </div>
       </aside>
+
+      <nav className="mobile-nav" aria-label="主区域切换">
+        <button
+          type="button"
+          className={mobilePane === 'chat' ? 'on' : ''}
+          onClick={() => setMobilePane('chat')}
+        >
+          <IconChat />
+          <span>对话</span>
+        </button>
+        <button
+          type="button"
+          className={mobilePane === 'bench' ? 'on' : ''}
+          onClick={() => setMobilePane('bench')}
+        >
+          <IconBoard />
+          <span>工作台</span>
+          {currentStatus === 'confirm' && <i className="mobile-nav-dot" title="待你确认" />}
+          {currentStatus === 'running' && <i className="mobile-nav-dot run" title="进行中" />}
+        </button>
+      </nav>
 
       {railNav === 'skills' && (
         <div className="market-layer">
