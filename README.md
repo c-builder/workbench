@@ -27,4 +27,4 @@ npm run dev
 
 推送到 `main` 或在 Actions 里手动 **Run workflow**，会执行 `npm ci` → `npm run build`，再把 `dist` 发布到 GitHub Pages。
 
-仓库需开启 **Settings → Pages → Source: GitHub Actions**（首次部署时若尚未选择，在 Actions 运行页按提示授权 `github-pages` 环境即可）。
+仓库首次发布后，在 **Settings → Pages → Build and deployment** 选择 **Deploy from a branch**，Branch 选 `gh-pages` / `/ (root)`。之后每次推送 `main` 都会自动重建并更新站点。
