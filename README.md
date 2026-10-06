@@ -27,6 +27,6 @@ npm run dev
 
 ## 发布
 
-每次把代码推送到 `main`（或在 Actions 里手动 Run workflow），GitHub Actions 会在线执行 `npm ci` 和 `npm run build`，并把产物发布到 `gh-pages`。本地不生成、不提交 `dist`。
+每次把代码推送到 `main`（或在 Actions 里手动 Run workflow），GitHub Actions 会在线构建，并通过 **Deploy to GitHub Pages** 工作流发布。本地不生成、不提交 `dist`。
 
-首次使用前在 **Settings → Pages → Build and deployment** 选择 **Deploy from a branch**，Branch 选 `gh-pages` / `/ (root)`。之后每次提交都会自动更新 [在线 Demo](https://c-builder.github.io/workbench/)。
+首次使用前在 **Settings → Pages → Build and deployment** 把 **Source** 设为 **GitHub Actions**（与 [award-simple](https://github.com/c-builder/award-simple) 相同）。之后每次提交都会自动更新 [在线 Demo](https://c-builder.github.io/workbench/)。
