@@ -1544,7 +1544,7 @@ function W3Form({
     <div>
       <div className="w3-bar">
         <span>W3 · {todo?.title || '表单'}</span>
-        <span>{submitted ? '已提交' : '停在提交前 = 合规'}</span>
+        <span>{submitted ? '已提交' : ready ? '提交需你确认' : '预填中，尚未提交'}</span>
       </div>
       <div className="mock-app">
         {nodes && <NodeStrip nodes={nodes} />}
