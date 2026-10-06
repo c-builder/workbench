@@ -74,6 +74,14 @@ export function IconSpinner() {
     </svg>
   )
 }
+export function IconRestore() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M7 7 3 11l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 11h11a5 5 0 0 1 0 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
 export function IconChevron() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">

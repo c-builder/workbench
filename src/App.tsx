@@ -9,7 +9,7 @@ import {
   sessionSeeds,
   suggestions,
 } from './data'
-import { IconChatPlus, IconChevron, IconClock, IconExternal, IconHand, IconLogo, IconNodes, IconPause, IconPlay, IconPlus, IconSend, IconSpinner } from './icons'
+import { IconChatPlus, IconChevron, IconClock, IconExternal, IconHand, IconLogo, IconNodes, IconPause, IconPlay, IconPlus, IconRestore, IconSend, IconSpinner } from './icons'
 import type {
   Artifact,
   BrowserTab,
@@ -22,8 +22,9 @@ import type {
   Todo,
   WorkbenchTab,
 } from './types'
+import { LogPanel } from './LogPanel'
 import { MarketPage } from './MarketPage'
-import { ControlLabel, execLabel, NodeStrip, nowStamp, typeLabel } from './ui'
+import { ControlLabel, downloadArtifact, execLabel, NodeStrip, nowStamp, typeLabel } from './ui'
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
@@ -52,7 +53,7 @@ function seedMessages(id: string): ChatMessage[] {
 }
 
 export default function App() {
-  const [bench, setBench] = useState(54)
+  const [bench, setBench] = useState(50)
   const drag = useRef(false)
   const runRef = useRef(0)
   const fillKeys = useRef<string[]>([])
@@ -134,8 +135,9 @@ export default function App() {
     const onMove = (e: MouseEvent) => {
       if (!drag.current) return
       const w = window.innerWidth
-      const pct = ((w - e.clientX) / w) * 100
-      setBench(Math.min(60, Math.max(32, pct)))
+      const rest = Math.max(480, w - 248)
+      const pct = ((w - e.clientX) / rest) * 100
+      setBench(Math.min(70, Math.max(30, pct)))
     }
     const up = () => {
       drag.current = false
@@ -148,12 +150,17 @@ export default function App() {
     }
   }, [])
 
+  const logHead = useRef<string | undefined>()
+
   const pushLog = (partial: Omit<LogEntry, 'id' | 'time'>) => {
-    setLogs((l) => [{ id: uid('l'), time: nowStamp(), ...partial }, ...l].slice(0, 80))
+    const id = uid('l')
+    logHead.current = id
+    setLogs((l) => [{ id, time: nowStamp(), ...partial }, ...l].slice(0, 80))
+    return id
   }
 
   const say = (role: ChatMessage['role'], text: string, steps?: string[]) => {
-    const msg: ChatMessage = { id: uid('m'), role, text, time: nowStamp().slice(0, 8), steps }
+    const msg: ChatMessage = { id: uid('m'), role, text, time: nowStamp().slice(0, 8), steps, checkpoint: logHead.current }
     setInbox((box) => ({ ...box, [sessionId]: [...(box[sessionId] || []), msg] }))
   }
 
@@ -461,24 +468,78 @@ export default function App() {
     runPageCollab()
   }
 
-  const undoLast = () => {
-    const last = logs.find((l) => l.reversible)
-    if (!last) {
-      say('system', '没有可撤销的步骤。不可逆提交无法撤销。')
-      return
+  const resetWorkbench = () => {
+    abortRun()
+    setTyping(false)
+    setLogs([])
+    logHead.current = undefined
+    fillKeys.current = []
+    setFormFill({})
+    setSubmitReady(false)
+    setSubmitted(false)
+    setBatchReady(false)
+    setBatchItems([])
+    setControl('none')
+    setTabControl('none')
+  }
+
+  const restoreTo = (id: string, opts: { silent?: boolean; dropSelf?: boolean } = {}) => {
+    const silent = opts.silent
+    const dropSelf = opts.dropSelf
+    const idx = logs.findIndex((l) => l.id === id)
+    const target = logs[idx]
+    if (idx < 0 || !target) return false
+    const cut = dropSelf ? idx + 1 : idx
+    if (cut <= 0) {
+      if (!silent) say('system', '已经在这个检查点，没有更新的步骤可回退。')
+      return false
     }
-    setLogs((l) => l.filter((x) => x.id !== last.id))
-    const key = fillKeys.current.pop()
-    if (key) {
-      setFormFill((f) => {
-        const n = { ...f }
-        delete n[key]
-        return n
-      })
+    const removed = logs.slice(0, cut)
+    const kept = logs.slice(cut)
+    setLogs(kept)
+    if (removed.some((l) => l.actor === 'agent' && l.reversible)) {
+      fillKeys.current = []
+      setFormFill({})
+    }
+    const anchor = kept[0]
+    if (anchor?.level === 'pause') {
+      setSubmitReady(true)
+      setSubmitted(false)
+      setBatchReady(anchor.action.includes('批量'))
+      setControl('paused')
+      setTabControl('paused')
+    } else if (removed.some((l) => l.level === 'pause' || l.action.includes('提交'))) {
       setSubmitReady(false)
       setSubmitted(false)
+      setBatchReady(false)
+      setControl('none')
+      setTabControl('none')
     }
-    pushLog({ actor: 'human', action: `撤销：${last.action}`, level: 'ok', reversible: false })
+    const label = dropSelf ? `撤销「${target.action}」及之后步骤` : `回退到检查点：${target.action}`
+    pushLog({ actor: 'human', action: label, level: 'ok', reversible: false })
+    if (!silent) {
+      say(
+        'system',
+        dropSelf ? `已撤销「${target.action}」，之后的停提交与预填已丢掉。` : `已回退到「${target.action}」之后的步骤已丢弃。`,
+      )
+    }
+    return true
+  }
+
+  const restoreChat = (msgId: string) => {
+    const list = inbox[sessionId] || []
+    const i = list.findIndex((m) => m.id === msgId)
+    if (i <= 0) return
+    const prev = list[i - 1]
+    abortRun()
+    setTyping(false)
+    if (prev.checkpoint) {
+      const ok = restoreTo(prev.checkpoint, { silent: true })
+      if (!ok) resetWorkbench()
+    } else {
+      resetWorkbench()
+    }
+    setInbox((box) => ({ ...box, [sessionId]: list.slice(0, i) }))
   }
 
   const toggleSimple = (t: Todo) => {
@@ -587,8 +648,29 @@ export default function App() {
     [mineAll.length, initiatedAll.length, running, agentable],
   )
 
+  const jumpStat = (label: string) => {
+    setArchiveView(false)
+    setPanel('flow')
+    if (label === '我的申请') setFoldInit(false)
+    else setFoldMine(false)
+    window.setTimeout(() => {
+      const el =
+        label === '我的申请'
+          ? document.getElementById('sec-init')
+          : label === '进行中'
+            ? document.querySelector<HTMLElement>('.flow-panel .card.running')
+            : label === 'Agent 可推进'
+              ? document.querySelector<HTMLElement>('.flow-panel [data-agentable="1"]')
+              : document.getElementById('sec-mine')
+      ;(el || document.getElementById('sec-mine'))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
+
   return (
-    <div className="app-shell" style={{ ['--bench' as string]: `${bench}%` }}>
+    <div
+      className="app-shell"
+      style={{ gridTemplateColumns: `248px minmax(0, ${100 - bench}fr) 6px minmax(0, ${bench}fr)` }}
+    >
       <aside className="rail">
         <div className="rail-brand">
           <div className="logo" title="衡台">
@@ -670,7 +752,7 @@ export default function App() {
           <span className="pill">模式 A · 决策接力</span>
         </header>
         <div className="messages">
-              {messages.map((m) => (
+              {messages.map((m, i) => (
             <div key={m.id} className={`msg ${m.role}`}>
               <div className="bubble">
                 {m.text}
@@ -687,7 +769,14 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <div className="msg-meta">{m.role === 'user' ? ME : m.role === 'agent' ? '衡台 Agent' : ''} · {m.time}</div>
+              <div className="msg-meta">
+                <span>{m.role === 'user' ? ME : m.role === 'agent' ? '衡台 Agent' : ''} · {m.time}</span>
+                {m.role !== 'system' && i > 0 && (
+                  <button type="button" className="msg-restore" title="撤销到这条之前，现场一并回退" onClick={() => restoreChat(m.id)}>
+                    <IconRestore />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {typing && (
@@ -771,10 +860,10 @@ export default function App() {
                 <>
                   <div className="summary">
                     {stats.map((s) => (
-                      <div key={s.l} className="stat">
+                      <button key={s.l} type="button" className="stat" onClick={() => jumpStat(s.l)}>
                         <b>{s.n}</b>
                         <span>{s.l}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                   <div className="row-actions">
@@ -828,7 +917,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="section-h">
+                  <div className="section-h" id="sec-mine">
                     我的待办
                     <button className="fold" onClick={() => setFoldMine((v) => !v)}>
                       {foldMine ? '展开' : '折叠'}
@@ -857,7 +946,7 @@ export default function App() {
                       )
                     })}
 
-                  <div className="section-h">
+                  <div className="section-h" id="sec-init">
                     我的申请
                     <button className="fold" onClick={() => setFoldInit((v) => !v)}>
                       {foldInit ? '展开' : '折叠'}
@@ -1065,33 +1154,15 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <div className="logs">
-                <div className="log-h">
-                  <span>操作日志 · 按应用留痕</span>
-                  <span>
-                    <select className="log-sel" value={logApp} onChange={(e) => setLogApp(e.target.value)}>
-                      {logApps.map((a) => (
-                        <option key={a} value={a}>
-                          {a === 'all' ? '全部应用' : a}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="btn ghost" onClick={undoLast} disabled={!logs.some((l) => l.reversible)}>
-                      撤销上一步可逆操作
-                    </button>
-                    {shownLogs.length} 步
-                  </span>
-                </div>
-                {shownLogs.map((l) => (
-                  <div key={l.id} className={`log-row ${l.level}`}>
-                    <span>{l.time}</span>
-                    <span className={`who ${l.actor}`}>{l.actor === 'agent' ? 'Agent' : '你'}</span>
-                    <span>{l.action}</span>
-                    <span>{l.reversible ? '可逆' : '不可逆'}</span>
-                  </div>
-                ))}
-                {!shownLogs.length && <div className="log-row">暂无操作。发起协同后每一步都会写在这里。</div>}
-              </div>
+              {logs.length > 0 && (
+                <LogPanel
+                  logs={shownLogs}
+                  apps={logApps}
+                  filter={logApp}
+                  onFilter={setLogApp}
+                  onRestore={(id, dropSelf) => restoreTo(id, { dropSelf })}
+                />
+              )}
             </div>
           )}
 
@@ -1104,14 +1175,21 @@ export default function App() {
                     {artifacts
                       .filter((a) => a.session === g)
                       .map((a) => (
-                        <button key={a.id} className={`file-item ${fileId === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`} onClick={() => setFileId(a.id)}>
-                          <b>
-                            {typeLabel(a.type)} · {a.name}
-                          </b>
-                          <span>
-                            {a.sub} {a.status === 'generating' ? '· 生成中' : ''}
-                          </span>
-                        </button>
+                        <div key={a.id} className={`file-row ${fileId === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}>
+                          <button type="button" className="file-item" onClick={() => setFileId(a.id)}>
+                            <b>
+                              {typeLabel(a.type)} · {a.name}
+                            </b>
+                            <span>
+                              {a.sub} {a.status === 'generating' ? '· 生成中' : ''}
+                            </span>
+                          </button>
+                          {a.status !== 'generating' && (
+                            <button type="button" className="file-dl" onClick={() => downloadArtifact(a)}>
+                              下载
+                            </button>
+                          )}
+                        </div>
                       ))}
                   </div>
                 ))}
@@ -1121,6 +1199,9 @@ export default function App() {
                   <span className="hint">
                     来源：{file.source === 'agent' ? 'Agent 代办' : file.source === 'flow' ? '流程联动' : file.source === 'dialogue' ? '对话生成' : '本地'} · {file.pages}
                   </span>
+                  <button className="btn" disabled={file.status === 'generating'} onClick={() => downloadArtifact(file)}>
+                    下载
+                  </button>
                   {file.type === 'html' && (
                     <button
                       className="btn primary"
@@ -1352,7 +1433,7 @@ function TodoCard({
   const mine = t.relation === 'mine_todo'
   const simple = t.kind === 'simple'
   return (
-    <div className={`card ${t.state === 'running' ? 'running' : ''}`}>
+    <div className={`card ${t.state === 'running' ? 'running' : ''}`} data-agentable={mine && t.agent && t.state === 'pending' && !simple ? '1' : undefined}>
       <div className="card-top">
         {batchMode && mine && !simple && (
           <input className="check" type="checkbox" checked={!!checked} onChange={(e) => onCheck?.(e.target.checked)} onClick={(e) => e.stopPropagation()} />

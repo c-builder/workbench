@@ -88,6 +88,7 @@ export interface ChatMessage {
   text: string
   time: string
   steps?: string[]
+  checkpoint?: string
 }
 
 export type SessionStatus = 'confirm' | 'running' | 'idle'
