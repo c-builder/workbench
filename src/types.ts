@@ -40,7 +40,8 @@ export interface Todo {
   state: TodoState
   execBy?: ExecBy
   amount?: string
-  system: string
+  /** 待办所属应用，如 W3、eBuy */
+  app: string
   url: string
   flow?: {
     nodes: FlowNode[]

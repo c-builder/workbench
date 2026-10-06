@@ -20,7 +20,7 @@ export const initialTodos: Todo[] = [
     relation: 'mine_todo',
     state: 'pending',
     amount: '¥4,860',
-    system: 'W3',
+    app: 'W3',
     url: 'https://w3.internal/approve/EXP-2026-1042',
     flow: {
       nodes: [
@@ -43,7 +43,7 @@ export const initialTodos: Todo[] = [
     relation: 'mine_todo',
     state: 'pending',
     amount: '¥12,400',
-    system: 'W3',
+    app: 'W3',
     url: 'https://w3.internal/approve/EXP-2026-1108',
     flow: {
       nodes: [
@@ -65,7 +65,7 @@ export const initialTodos: Todo[] = [
     relation: 'mine_todo',
     state: 'pending',
     amount: '¥2,160',
-    system: 'W3',
+    app: 'W3',
     url: 'https://w3.internal/approve/EXP-2026-1115',
     flow: {
       nodes: [
@@ -86,7 +86,7 @@ export const initialTodos: Todo[] = [
     agent: true,
     relation: 'mine_todo',
     state: 'pending',
-    system: 'W3',
+    app: 'W3',
     url: 'https://w3.internal/flow/PO-INTRO-8821',
     flow: {
       nodes: [
@@ -137,7 +137,7 @@ export const initialTodos: Todo[] = [
     agent: true,
     relation: 'mine_todo',
     state: 'pending',
-    system: 'W3',
+    app: 'W3',
     url: 'https://w3.internal/hr/qualify/LY-2026',
     flow: {
       nodes: [
@@ -157,7 +157,7 @@ export const initialTodos: Todo[] = [
     agent: true,
     relation: 'mine_todo',
     state: 'pending',
-    system: '行政门户',
+    app: '行政门户',
     url: 'https://office.internal/room/A3-12',
   },
   {
@@ -170,7 +170,7 @@ export const initialTodos: Todo[] = [
     agent: true,
     relation: 'mine_todo',
     state: 'pending',
-    system: '工作台',
+    app: '工作台',
     url: '',
     kind: 'simple',
   },
@@ -184,7 +184,7 @@ export const initialTodos: Todo[] = [
     agent: false,
     relation: 'mine_initiated',
     state: 'pending',
-    system: 'eBuy',
+    app: 'eBuy',
     url: 'https://ebuy.internal/po/INTRO-7710',
     flow: {
       nodes: [
@@ -206,7 +206,7 @@ export const initialTodos: Todo[] = [
     agent: false,
     relation: 'mine_initiated',
     state: 'pending',
-    system: '费控',
+    app: '费控',
     url: 'https://w3.internal/expense/MY-0922',
     flow: {
       nodes: [
@@ -231,7 +231,7 @@ export const initialArchived: Todo[] = [
     state: 'done',
     execBy: 'mix',
     amount: '¥1,680',
-    system: 'W3',
+    app: 'W3',
     url: '',
   },
   {
@@ -245,7 +245,7 @@ export const initialArchived: Todo[] = [
     relation: 'mine_todo',
     state: 'done',
     execBy: 'human',
-    system: 'W3',
+    app: 'W3',
     url: '',
   },
   {
@@ -259,7 +259,7 @@ export const initialArchived: Todo[] = [
     relation: 'mine_todo',
     state: 'done',
     execBy: 'agent',
-    system: '工作台',
+    app: '工作台',
     url: '',
   },
 ]

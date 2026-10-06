@@ -155,7 +155,7 @@ export default function App() {
       t.title.includes(q) ||
       t.subtitle.includes(q) ||
       t.domain.includes(q) ||
-      t.system.includes(q)
+      t.app.includes(q)
     const dom = domainFilter === 'all' || t.domain === domainFilter
     return hit && dom
   }
@@ -289,7 +289,7 @@ export default function App() {
     setCursor({ on: true, x: 80, y: 70 })
     const tab: BrowserTab = {
       id: uid('tab'),
-      title: `${todo.system} · ${todo.title.split('·')[0].trim()}`,
+      title: `${todo.app} · ${todo.title.split('·')[0].trim()}`,
       url: todo.url || 'https://w3.internal/todo',
       kind: 'w3-form',
       controlDot: 'agent',
@@ -320,10 +320,10 @@ export default function App() {
         return false
       }
       steps.push(`${nowStamp()}  ${action}`)
-      pushLog({ actor: 'agent', action, level: 'info', reversible, app: todo.system })
+      pushLog({ actor: 'agent', action, level: 'info', reversible, app: todo.app })
       return true
     }
-    if (!(await step(480, `打开 ${todo.system} · ${todo.title}`))) return
+    if (!(await step(480, `打开 ${todo.app} · ${todo.title}`))) return
     if (todo.domain === '采购' || todo.id === 't4') {
       if (!(await step(640, '从群聊抽取三位评委意见'))) return
       fillField('opinion', '张工：兼容现网，有条件通过；赵工：需补备件清单。', '群聊')
@@ -361,7 +361,7 @@ export default function App() {
     setCursor((c) => ({ ...c, on: false }))
     setSessionControl('paused', tab.id)
     setSubmitReady(true)
-    pushLog({ actor: 'agent', action: '停在提交前，等待人工确认（不可逆）', level: 'pause', reversible: false, app: todo.system })
+    pushLog({ actor: 'agent', action: '停在提交前，等待人工确认（不可逆）', level: 'pause', reversible: false, app: todo.app })
     setArtifacts((list) =>
       list.map((a) =>
         a.id === artId
@@ -1255,44 +1255,67 @@ export default function App() {
                   <div className="row-actions">
                     <input
                       className="search"
-                      placeholder="搜索待办 / 系统 / 域"
+                      placeholder="搜索待办名称、应用、业务分类"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </div>
-                  <div className="filter-row">
-                    <button className={`btn ${domainFilter === 'all' ? 'primary' : ''}`} onClick={() => setDomainFilter('all')}>
-                      全部域
-                    </button>
-                    {DOMAINS.map((d) => (
-                      <button key={d} className={`btn ${domainFilter === d ? 'primary' : ''}`} onClick={() => setDomainFilter(d)}>
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="row-actions">
-                    <button
-                      className={`btn ${batchMode ? 'warn' : 'primary'}`}
-                      onClick={() => {
-                        setBatchMode((v) => !v)
-                        setPicked([])
-                      }}
-                    >
-                      {batchMode ? '退出批量' : '批量审批（待我审批）'}
-                    </button>
-                    <button
-                      className="btn"
-                      disabled={!agentable}
-                      onClick={() => {
-                        const t = todos.find((x) => x.relation === 'mine_todo' && x.agent && x.state === 'pending' && x.kind !== 'simple')
-                        if (t) runSingleCollab(t)
-                      }}
-                    >
-                      一键推进可代办事项
-                    </button>
-                    <button className="btn ghost" onClick={() => setArchiveView(true)}>
-                      归档查看
-                    </button>
+                  <div className="flow-tools">
+                    <div className="flow-tool-block">
+                      <span className="flow-tool-label">按业务筛选</span>
+                      <div className="chip-row" role="radiogroup" aria-label="按业务筛选">
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={domainFilter === 'all'}
+                          className={`chip ${domainFilter === 'all' ? 'on' : ''}`}
+                          onClick={() => setDomainFilter('all')}
+                        >
+                          全部
+                        </button>
+                        {DOMAINS.map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            role="radio"
+                            aria-checked={domainFilter === d}
+                            className={`chip ${domainFilter === d ? 'on' : ''}`}
+                            onClick={() => setDomainFilter(d)}
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flow-tool-block">
+                      <span className="flow-tool-label">快捷操作</span>
+                      <div className="action-row">
+                        <button
+                          type="button"
+                          className={`btn ${batchMode ? 'warn' : ''}`}
+                          onClick={() => {
+                            setBatchMode((v) => !v)
+                            setPicked([])
+                          }}
+                        >
+                          {batchMode ? '退出批量' : '批量审批（待我审批）'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={!agentable}
+                          onClick={() => {
+                            const t = todos.find((x) => x.relation === 'mine_todo' && x.agent && x.state === 'pending' && x.kind !== 'simple')
+                            if (t) runSingleCollab(t)
+                          }}
+                        >
+                          一键推进可代办事项
+                        </button>
+                        <button type="button" className="btn ghost" onClick={() => setArchiveView(true)}>
+                          归档查看
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   {batchMode && (
                     <div className="row-actions">
@@ -1345,16 +1368,28 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  <div className="row-actions">
-                    <button className="btn" onClick={() => setArchiveView(false)}>
-                      返回待办
-                    </button>
-                    <div className="filter-row">
-                      {(['all', 'agent', 'human', 'mix'] as const).map((k) => (
-                        <button key={k} className={`btn ${archiveFilter === k ? 'primary' : ''}`} onClick={() => setArchiveFilter(k)}>
-                          {k === 'all' ? '全部' : execLabel(k)}
-                        </button>
-                      ))}
+                  <div className="flow-tools">
+                    <div className="action-row">
+                      <button type="button" className="btn" onClick={() => setArchiveView(false)}>
+                        返回待办
+                      </button>
+                    </div>
+                    <div className="flow-tool-block">
+                      <span className="flow-tool-label">按执行方式筛选</span>
+                      <div className="chip-row" role="radiogroup" aria-label="按执行方式筛选">
+                        {(['all', 'agent', 'human', 'mix'] as const).map((k) => (
+                          <button
+                            key={k}
+                            type="button"
+                            role="radio"
+                            aria-checked={archiveFilter === k}
+                            className={`chip ${archiveFilter === k ? 'on' : ''}`}
+                            onClick={() => setArchiveFilter(k)}
+                          >
+                            {k === 'all' ? '全部' : execLabel(k)}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   {shownArchive.map((t) => (
@@ -1637,7 +1672,7 @@ export default function App() {
               say('user', `启用「${title}」`)
               say(
                 'agent',
-                `已把「${title}」加入当前任务。专家 / 技能 / 连接器提供可复用能力，不会代替应用中心里的 W3、eBuy 等系统入口。处理待办仍从右侧流程活动或应用进入。`,
+                `已把「${title}」加入当前任务。专家 / 技能 / 连接器提供可复用能力，不会代替应用中心里的 W3、eBuy 等应用。处理待办仍从右侧流程活动或应用进入。`,
               )
             }}
           />
@@ -1736,7 +1771,7 @@ export default function App() {
             <div className="sheet-head">
               <div>
                 <h2>{detail.title}</h2>
-                <div className="hint">{detail.subtitle} · {detail.system}</div>
+                <div className="hint">{detail.subtitle} · {detail.app}</div>
               </div>
               <button type="button" className="sheet-close" aria-label="关闭" onClick={() => setDetail(null)}>
                 ×
@@ -1973,7 +2008,7 @@ function TodoCard({
           <div className="badges">
             <span className={`badge ${t.pri}`}>{t.pri === 'high' ? '紧急' : t.pri === 'mid' ? '普通' : '低'}</span>
             <span className="badge">{t.domain}</span>
-            <span className="badge">{t.system}</span>
+            <span className="badge" title="应用">{t.app}</span>
             {simple && <span className="badge">普通任务</span>}
             {mine ? <span className="badge mine">我的待办</span> : <span className="badge track">我的申请 · 处理中</span>}
           </div>

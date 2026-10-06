@@ -104,7 +104,7 @@ export function MarketPage({ onUse }: { onUse: (title: string) => void }) {
       {tab === 'connector' && (
         <>
           <div className="market-h">连接器</div>
-          <p className="market-note">连接器提供邮件、群聊、会议等上下文来源，不是右侧应用中心里的 W3 / eBuy 系统入口。</p>
+          <p className="market-note">连接器提供邮件、群聊、会议等上下文来源，不是右侧应用中心里的 W3 / eBuy 等应用。</p>
         </>
       )}
 
