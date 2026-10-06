@@ -19,6 +19,7 @@ import type {
   FillMap,
   LogEntry,
   Session,
+  SessionStatus,
   Todo,
   WorkbenchTab,
 } from './types'
@@ -28,6 +29,18 @@ import { ControlLabel, downloadArtifact, execLabel, NodeStrip, nowStamp, typeLab
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
+
+function sessionLiveStatus(p: {
+  control: Control
+  typing: boolean
+  submitReady: boolean
+  submitted: boolean
+  batchReady: boolean
+}): SessionStatus {
+  if (p.control === 'agent' || p.typing) return 'running'
+  if (p.control === 'paused' || (p.submitReady && !p.submitted) || p.batchReady) return 'confirm'
+  return 'idle'
+}
 
 function uid(p: string) {
   return `${p}-${Math.random().toString(36).slice(2, 8)}`
@@ -126,6 +139,11 @@ export default function App() {
   const agentable = mineAll.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple').length
   const shownLogs = logs.filter((l) => logApp === 'all' || l.app === logApp)
   const logApps = ['all', ...Array.from(new Set(logs.map((l) => l.app).filter((a): a is string => Boolean(a))))]
+  const currentStatus = sessionLiveStatus({ control, typing, submitReady, submitted, batchReady })
+
+  useEffect(() => {
+    setSessionList((list) => list.map((s) => (s.id === sessionId ? { ...s, status: currentStatus } : s)))
+  }, [sessionId, currentStatus])
 
   useEffect(() => {
     msgEnd.current?.scrollIntoView({ behavior: 'smooth' })
@@ -702,29 +720,32 @@ export default function App() {
           </button>
           {!foldTasks &&
             (sessionList.length ? (
-              sessionList.map((s) => (
-                <button
-                  key={s.id}
-                  className={`task-item ${s.id === sessionId && railNav === 'assistant' ? 'active' : ''}`}
-                  onClick={() => {
-                    switchSession(s.id)
-                    setRailNav('assistant')
-                  }}
-                >
-                  <span className="task-title">{s.title}</span>
-                  {s.status === 'confirm' && (
-                    <span className="task-badge">
-                      待确认
-                      <i />
-                    </span>
-                  )}
-                  {s.status === 'running' && (
-                    <span className="task-spin" title="进行中">
-                      <IconSpinner />
-                    </span>
-                  )}
-                </button>
-              ))
+              sessionList.map((s) => {
+                const st = s.id === sessionId ? currentStatus : s.status
+                return (
+                  <button
+                    key={s.id}
+                    className={`task-item ${s.id === sessionId && railNav === 'assistant' ? 'active' : ''}`}
+                    onClick={() => {
+                      switchSession(s.id)
+                      setRailNav('assistant')
+                    }}
+                  >
+                    <span className="task-title">{s.title}</span>
+                    {st === 'confirm' && (
+                      <span className="task-badge">
+                        待确认
+                        <i />
+                      </span>
+                    )}
+                    {st === 'running' && (
+                      <span className="task-spin" title="进行中">
+                        <IconSpinner />
+                      </span>
+                    )}
+                  </button>
+                )
+              })
             ) : (
               <div className="rail-muted">暂无任务</div>
             ))}

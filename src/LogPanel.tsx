@@ -27,6 +27,14 @@ function groupLogs(newestFirst: LogEntry[]): Block[] {
   return blocks.reverse()
 }
 
+function openPin(logs: LogEntry[]) {
+  const pauseIdx = logs.findIndex((l) => l.level === 'pause')
+  if (pauseIdx < 0) return undefined
+  const doneIdx = logs.findIndex((l) => l.level === 'ok' && l.action.includes('提交'))
+  if (doneIdx >= 0 && doneIdx < pauseIdx) return undefined
+  return logs[pauseIdx]
+}
+
 function tag(l: LogEntry, pinId?: string) {
   if (l.level === 'pause') {
     if (pinId && l.id === pinId) return { t: '待确认', c: 'pause' }
@@ -108,7 +116,7 @@ export function LogPanel({
   const [fold, setFold] = useState<Record<string, boolean>>({})
   const [q, setQ] = useState('')
   const [menu, setMenu] = useState(false)
-  const pin = logs.find((l) => l.level === 'pause')
+  const pin = openPin(logs)
   const head = logs[0]?.id
 
   useEffect(() => {
@@ -190,7 +198,6 @@ export function LogPanel({
             <span>{pin.action}</span>
             <em className="log-chip pause">待确认</em>
           </button>
-          {head !== pin.id && <RestoreBtn id={pin.id} onRestore={onRestore} />}
         </div>
       )}
 
@@ -199,7 +206,7 @@ export function LogPanel({
         {visible.map((b) => {
           if (b.kind === 'item') {
             if (pin && b.item.id === pin.id) return null
-            return <Row key={b.item.id} l={b.item} canRestore={b.item.id !== head} onRestore={onRestore} pinId={pin?.id} />
+            return <Row key={b.item.id} l={b.item} canRestore={!!b.item.reversible && b.item.id !== head} onRestore={onRestore} pinId={pin?.id} />
           }
           const expanded = fold[b.id] ?? (open ? b.id === newestRound?.id : false)
           const last = b.items[b.items.length - 1]
@@ -219,7 +226,7 @@ export function LogPanel({
                 {last.id !== head && <RestoreBtn id={last.id} onRestore={onRestore} />}
               </div>
               {expanded &&
-                b.items.map((l) => <Row key={l.id} l={l} canRestore={l.id !== head} onRestore={onRestore} pinId={pin?.id} />)}
+                b.items.map((l) => <Row key={l.id} l={l} canRestore={!!l.reversible && l.id !== head} onRestore={onRestore} pinId={pin?.id} />)}
             </div>
           )
         })}

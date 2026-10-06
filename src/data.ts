@@ -3,8 +3,8 @@ import type { Artifact, Session, Todo } from './types'
 export const ME = '陈华明'
 
 export const sessions: Session[] = [
-  { id: 's1', title: '积压差旅报销过一遍', time: '今天 14:12', status: 'confirm' },
-  { id: 's2', title: '供应商引入·技术评审', time: '今天 11:03', status: 'running' },
+  { id: 's1', title: '积压差旅报销过一遍', time: '今天 14:12', status: 'idle' },
+  { id: 's2', title: '供应商引入·技术评审', time: '今天 11:03', status: 'idle' },
   { id: 's3', title: '会议室冲突协调', time: '昨天 18:40', status: 'idle' },
 ]
 

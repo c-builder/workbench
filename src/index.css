@@ -190,22 +190,24 @@ button { cursor: pointer; }
 .task-fold.closed svg { transform: rotate(-90deg); }
 
 .task-item {
-  display: flex; align-items: center; gap: 8px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 8px;
   width: 100%; border: 0; background: transparent; text-align: left;
   border-radius: 10px; padding: 8px 10px; color: #2a2a2e;
 }
 .task-item:hover { background: #ececee; }
 .task-item.active { background: #ececee; }
 .task-title {
-  flex: 1; min-width: 0;
+  min-width: 0;
   font-size: 13.5px; font-weight: 500; line-height: 1.35;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .task-badge {
   flex-shrink: 0;
   display: inline-flex; align-items: center; gap: 6px;
   height: 22px; padding: 0 8px 0 10px; border-radius: 99px;
   background: #2f2f33; color: #fff; font-size: 11px; font-weight: 500; white-space: nowrap;
+  min-width: max-content;
 }
 .task-badge i { width: 6px; height: 6px; border-radius: 50%; background: #d4d4d8; }
 .task-spin {
