@@ -1835,50 +1835,53 @@ export default function App() {
                       role="radiogroup"
                       aria-label={flowRelation === 'mine' ? '待办视角' : '申请视角'}
                     >
-                      {(flowRelation === 'mine'
-                        ? ([
-                            ['all', '全部', mine.length, true],
-                            ['running', '进行中', mineRunning.length, mineRunning.length > 0],
-                            ['agentable', '可推进', mineAgentable.length, mineAgentable.length > 0],
-                            ['done', '已完成', doneCount, doneCount > 0],
-                          ] as const)
-                        : ([
-                            ['all', '全部', initiated.length, true],
-                            ['running', '处理中', initRunning.length, initRunning.length > 0],
-                            ['done', '已完成', doneCount, doneCount > 0],
-                          ] as const)
-                      )
-                        .filter(([, , , enabled], i, arr) => {
-                          const id = arr[i][0]
-                          // 零值视角隐藏；当前选中的仍保留，避免状态丢失
-                          if (!enabled && id !== 'all') {
-                            return flowRelation === 'mine' ? mineLens === id : initLens === id
-                          }
-                          return true
-                        })
-                        .map(([id, label, n]) => {
-                          const on = flowRelation === 'mine' ? mineLens === id : initLens === id
-                          return (
-                            <button
-                              key={id}
-                              type="button"
-                              role="radio"
-                              aria-checked={on}
-                              className={on ? 'on' : ''}
-                              onClick={() => {
-                                if (flowRelation === 'mine') {
+                      {flowRelation === 'mine'
+                        ? (
+                            [
+                              ['all', '全部', mine.length, true],
+                              ['running', '进行中', mineRunning.length, mineRunning.length > 0],
+                              ['agentable', '可推进', mineAgentable.length, mineAgentable.length > 0],
+                              ['done', '已完成', doneCount, doneCount > 0],
+                            ] as const
+                          )
+                            .filter(([id, , , enabled]) => enabled || mineLens === id)
+                            .map(([id, label, n]) => (
+                              <button
+                                key={id}
+                                type="button"
+                                role="radio"
+                                aria-checked={mineLens === id}
+                                className={mineLens === id ? 'on' : ''}
+                                onClick={() => {
                                   setMineLens(id)
                                   if (id === 'done') setBatchMode(false)
-                                } else {
-                                  setInitLens(id)
-                                }
-                              }}
-                            >
-                              {label}
-                              <em>{n}</em>
-                            </button>
+                                }}
+                              >
+                                {label}
+                                <em>{n}</em>
+                              </button>
+                            ))
+                        : (
+                            [
+                              ['all', '全部', initiated.length, true],
+                              ['running', '处理中', initRunning.length, initRunning.length > 0],
+                              ['done', '已完成', doneCount, doneCount > 0],
+                            ] as const
                           )
-                        })}
+                            .filter(([id, , , enabled]) => enabled || initLens === id)
+                            .map(([id, label, n]) => (
+                              <button
+                                key={id}
+                                type="button"
+                                role="radio"
+                                aria-checked={initLens === id}
+                                className={initLens === id ? 'on' : ''}
+                                onClick={() => setInitLens(id)}
+                              >
+                                {label}
+                                <em>{n}</em>
+                              </button>
+                            ))}
                     </div>
                     {flowRelation === 'mine' && !viewingDone ? (
                       <div className="flow-actions">
