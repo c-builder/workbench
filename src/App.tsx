@@ -1478,142 +1478,144 @@ export default function App() {
               {!archiveView ? (
                 <>
                   <div className="flow-console">
-                    <div className="scope-segment" role="tablist" aria-label="责任归属">
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={flowRelation === 'mine'}
-                        className={flowRelation === 'mine' ? 'on' : ''}
-                        onClick={() => selectFlowRelation('mine')}
-                      >
-                        我的待办
-                        <span className="scope-count">{mineAll.length}</span>
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={flowRelation === 'initiated'}
-                        className={flowRelation === 'initiated' ? 'on' : ''}
-                        onClick={() => selectFlowRelation('initiated')}
-                      >
-                        我的申请
-                        <span className="scope-count">{initiatedAll.length}</span>
-                      </button>
-                    </div>
-                    <input
-                      className="search flow-search"
-                      placeholder={
-                        flowRelation === 'mine'
-                          ? '搜索待办名称或应用'
-                          : '搜索申请名称或应用'
-                      }
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                    />
-                    <div className="flow-filters">
-                      <div
-                        className="lens-segment"
-                        role="radiogroup"
-                        aria-label={flowRelation === 'mine' ? '待办视角' : '申请视角'}
-                      >
-                        {flowRelation === 'mine'
-                          ? (
-                              [
-                                ['all', '全部', mine.length],
-                                ['agentable', '可推进', mineAgentable.length],
-                                ['running', '进行中', mineRunning.length],
-                              ] as const
-                            ).map(([id, label, n]) => (
-                              <button
-                                key={id}
-                                type="button"
-                                role="radio"
-                                aria-checked={mineLens === id}
-                                className={mineLens === id ? 'on' : ''}
-                                onClick={() => setMineLens(id)}
-                              >
-                                {label}
-                                <em>{n}</em>
-                              </button>
-                            ))
-                          : (
-                              [
-                                ['all', '全部', initiated.length],
-                                ['running', '处理中', initRunning.length],
-                              ] as const
-                            ).map(([id, label, n]) => (
-                              <button
-                                key={id}
-                                type="button"
-                                role="radio"
-                                aria-checked={initLens === id}
-                                className={initLens === id ? 'on' : ''}
-                                onClick={() => setInitLens(id)}
-                              >
-                                {label}
-                                <em>{n}</em>
-                              </button>
-                            ))}
-                      </div>
-                      <label className="domain-select-wrap">
-                        <span className="sr-only">业务分类</span>
-                        <select
-                          className="domain-select"
-                          value={domainFilter}
-                          onChange={(e) => setDomainFilter(e.target.value as 'all' | Domain)}
-                          aria-label="业务分类"
+                    <div className="flow-console-card">
+                      <div className="scope-segment" role="tablist" aria-label="责任归属">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={flowRelation === 'mine'}
+                          className={flowRelation === 'mine' ? 'on' : ''}
+                          onClick={() => selectFlowRelation('mine')}
                         >
-                          <option value="all">全部业务</option>
-                          {DOMAINS.map((d) => (
-                            <option key={d} value={d}>
-                              {d}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="flow-actions">
-                      {flowRelation === 'mine' && (
-                        <>
-                          <button
-                            type="button"
-                            className={`flow-action-link${batchMode ? ' on' : ''}`}
-                            onClick={() => {
-                              setBatchMode((v) => !v)
-                              setPicked([])
-                            }}
+                          我的待办
+                          <span className="scope-count">{mineAll.length}</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={flowRelation === 'initiated'}
+                          className={flowRelation === 'initiated' ? 'on' : ''}
+                          onClick={() => selectFlowRelation('initiated')}
+                        >
+                          我的申请
+                          <span className="scope-count">{initiatedAll.length}</span>
+                        </button>
+                      </div>
+                      <input
+                        className="search flow-search"
+                        placeholder={
+                          flowRelation === 'mine'
+                            ? '搜索待办名称或应用'
+                            : '搜索申请名称或应用'
+                        }
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                      />
+                      <div className="flow-filters">
+                        <div
+                          className="lens-segment"
+                          role="radiogroup"
+                          aria-label={flowRelation === 'mine' ? '待办视角' : '申请视角'}
+                        >
+                          {flowRelation === 'mine'
+                            ? (
+                                [
+                                  ['all', '全部', mine.length],
+                                  ['agentable', '可推进', mineAgentable.length],
+                                  ['running', '进行中', mineRunning.length],
+                                ] as const
+                              ).map(([id, label, n]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={mineLens === id}
+                                  className={mineLens === id ? 'on' : ''}
+                                  onClick={() => setMineLens(id)}
+                                >
+                                  {label}
+                                  <em>{n}</em>
+                                </button>
+                              ))
+                            : (
+                                [
+                                  ['all', '全部', initiated.length],
+                                  ['running', '处理中', initRunning.length],
+                                ] as const
+                              ).map(([id, label, n]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={initLens === id}
+                                  className={initLens === id ? 'on' : ''}
+                                  onClick={() => setInitLens(id)}
+                                >
+                                  {label}
+                                  <em>{n}</em>
+                                </button>
+                              ))}
+                        </div>
+                        <label className="domain-select-wrap">
+                          <span className="sr-only">业务分类</span>
+                          <select
+                            className="domain-select"
+                            value={domainFilter}
+                            onChange={(e) => setDomainFilter(e.target.value as 'all' | Domain)}
+                            aria-label="业务分类"
                           >
-                            {batchMode ? '退出批量审批' : '批量审批'}
-                          </button>
-                          <span className="flow-action-sep" aria-hidden>
-                            ·
-                          </span>
-                          <button
-                            type="button"
-                            className="flow-action-link"
-                            disabled={!agentable}
-                            onClick={() => {
-                              setMineLens('agentable')
-                              const t = todos.find(
-                                (x) =>
-                                  x.relation === 'mine_todo' &&
-                                  x.agent &&
-                                  x.state === 'pending' &&
-                                  x.kind !== 'simple',
-                              )
-                              if (t) runSingleCollab(t)
-                            }}
-                          >
-                            一键推进
-                          </button>
-                          <span className="flow-action-sep" aria-hidden>
-                            ·
-                          </span>
-                        </>
-                      )}
-                      <button type="button" className="flow-action-link" onClick={() => setArchiveView(true)}>
-                        归档查看
-                      </button>
+                            <option value="all">全部业务</option>
+                            {DOMAINS.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="flow-actions">
+                        {flowRelation === 'mine' && (
+                          <>
+                            <button
+                              type="button"
+                              className={`flow-action-link${batchMode ? ' on' : ''}`}
+                              onClick={() => {
+                                setBatchMode((v) => !v)
+                                setPicked([])
+                              }}
+                            >
+                              {batchMode ? '退出批量审批' : '批量审批'}
+                            </button>
+                            <span className="flow-action-sep" aria-hidden>
+                              ·
+                            </span>
+                            <button
+                              type="button"
+                              className="flow-action-link"
+                              disabled={!agentable}
+                              onClick={() => {
+                                setMineLens('agentable')
+                                const t = todos.find(
+                                  (x) =>
+                                    x.relation === 'mine_todo' &&
+                                    x.agent &&
+                                    x.state === 'pending' &&
+                                    x.kind !== 'simple',
+                                )
+                                if (t) runSingleCollab(t)
+                              }}
+                            >
+                              一键推进
+                            </button>
+                            <span className="flow-action-sep" aria-hidden>
+                              ·
+                            </span>
+                          </>
+                        )}
+                        <button type="button" className="flow-action-link" onClick={() => setArchiveView(true)}>
+                          归档查看
+                        </button>
+                      </div>
                     </div>
                   </div>
                   {batchMode && flowRelation === 'mine' && (
