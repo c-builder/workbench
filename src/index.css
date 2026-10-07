@@ -688,9 +688,21 @@ button { cursor: pointer; }
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
   width: 100%; text-align: left; color: inherit;
 }
-.stat:hover { border-color: var(--forest); background: #fff; }
+.stat:hover { border-color: #c4c4c1; background: #fff; }
+.stat.on {
+  background: #fff;
+  border-color: var(--ink);
+  box-shadow: 0 1px 0 rgba(26, 46, 36, 0.04);
+}
+.stat.on b { color: var(--ink); }
+.stat.on span { color: var(--ink-soft); }
 .stat b { display: block; font-size: 20px; letter-spacing: -0.03em; }
 .stat span { font-size: 11px; color: var(--muted); }
+.empty-scope {
+  padding: 28px 12px; text-align: center;
+  color: var(--muted); font-size: 13px;
+  border: 1px dashed var(--line); border-radius: 12px; margin-bottom: 12px;
+}
 .row-actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .btn {
   border: 1px solid var(--line-strong); background: var(--surface); border-radius: 10px;

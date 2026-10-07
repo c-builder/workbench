@@ -131,8 +131,7 @@ export default function App() {
   const [archived, setArchived] = useState<Todo[]>(initialArchived)
   const [archiveView, setArchiveView] = useState(false)
   const [archiveFilter, setArchiveFilter] = useState<'all' | 'agent' | 'human' | 'mix'>('all')
-  const [foldMine, setFoldMine] = useState(false)
-  const [foldInit, setFoldInit] = useState(false)
+  const [flowScope, setFlowScope] = useState<'mine' | 'initiated' | 'running' | 'agentable'>('mine')
   const [batchMode, setBatchMode] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
   const [detail, setDetail] = useState<Todo | null>(null)
@@ -211,8 +210,26 @@ export default function App() {
   const initiatedAll = todos.filter((t) => t.relation === 'mine_initiated')
   const mine = mineAll.filter(match)
   const initiated = initiatedAll.filter(match)
+  const runningList = todos.filter((t) => t.state === 'running' && match(t))
+  const agentableList = mineAll.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple' && match(t))
   const running = todos.filter((t) => t.state === 'running').length
   const agentable = mineAll.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple').length
+  const scopedTodos =
+    flowScope === 'initiated'
+      ? initiated
+      : flowScope === 'running'
+        ? runningList
+        : flowScope === 'agentable'
+          ? agentableList
+          : mine
+  const scopeTitle =
+    flowScope === 'initiated'
+      ? '我的申请'
+      : flowScope === 'running'
+        ? '进行中'
+        : flowScope === 'agentable'
+          ? 'Agent 可推进'
+          : '我的待办'
   const shownLogs = logs.filter((l) => logApp === 'all' || l.app === logApp)
   const logApps = ['all', ...Array.from(new Set(logs.map((l) => l.app).filter((a): a is string => Boolean(a))))]
   const currentStatus = sessionLiveStatus({ control, typing, submitReady, submitted, batchReady })
@@ -892,32 +909,25 @@ export default function App() {
   const shownArchive = archived.filter((t) => archiveFilter === 'all' || t.execBy === archiveFilter)
 
   const stats = useMemo(
-    () => [
-      { n: mineAll.length, l: '我的待办' },
-      { n: initiatedAll.length, l: '我的申请' },
-      { n: running, l: '进行中' },
-      { n: agentable, l: 'Agent 可推进' },
-    ],
+    () =>
+      [
+        { id: 'mine' as const, n: mineAll.length, l: '我的待办' },
+        { id: 'initiated' as const, n: initiatedAll.length, l: '我的申请' },
+        { id: 'running' as const, n: running, l: '进行中' },
+        { id: 'agentable' as const, n: agentable, l: 'Agent 可推进' },
+      ] as const,
     [mineAll.length, initiatedAll.length, running, agentable],
   )
 
-  const jumpStat = (label: string) => {
+  const selectFlowScope = (id: (typeof stats)[number]['id']) => {
     setArchiveView(false)
     setPanel('flow')
     setMobilePane('bench')
-    if (label === '我的申请') setFoldInit(false)
-    else setFoldMine(false)
-    window.setTimeout(() => {
-      const el =
-        label === '我的申请'
-          ? document.getElementById('sec-init')
-          : label === '进行中'
-            ? document.querySelector<HTMLElement>('.flow-panel .card.running')
-            : label === 'Agent 可推进'
-              ? document.querySelector<HTMLElement>('.flow-panel [data-agentable="1"]')
-              : document.getElementById('sec-mine')
-      ;(el || document.getElementById('sec-mine'))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
+    setFlowScope(id)
+    if (id !== 'mine') {
+      setBatchMode(false)
+      setPicked([])
+    }
   }
 
   return (
@@ -1459,9 +1469,16 @@ export default function App() {
             <div className="flow-panel">
               {!archiveView ? (
                 <>
-                  <div className="summary">
+                  <div className="summary" role="tablist" aria-label="流程活动范围">
                     {stats.map((s) => (
-                      <button key={s.l} type="button" className="stat" onClick={() => jumpStat(s.l)}>
+                      <button
+                        key={s.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={flowScope === s.id}
+                        className={`stat ${flowScope === s.id ? 'on' : ''}`}
+                        onClick={() => selectFlowScope(s.id)}
+                      >
                         <b>{s.n}</b>
                         <span>{s.l}</span>
                       </button>
@@ -1505,27 +1522,34 @@ export default function App() {
                     <div className="flow-tool-block">
                       <span className="flow-tool-label">快捷操作</span>
                       <div className="action-row">
-                        <button
-                          type="button"
-                          className={`btn ${batchMode ? 'warn' : ''}`}
-                          onClick={() => {
-                            setBatchMode((v) => !v)
-                            setPicked([])
-                          }}
-                        >
-                          {batchMode ? '退出批量' : '批量审批（待我审批）'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          disabled={!agentable}
-                          onClick={() => {
-                            const t = todos.find((x) => x.relation === 'mine_todo' && x.agent && x.state === 'pending' && x.kind !== 'simple')
-                            if (t) runSingleCollab(t)
-                          }}
-                        >
-                          一键推进可代办事项
-                        </button>
+                        {flowScope === 'mine' && (
+                          <button
+                            type="button"
+                            className={`btn ${batchMode ? 'warn' : ''}`}
+                            onClick={() => {
+                              setBatchMode((v) => !v)
+                              setPicked([])
+                            }}
+                          >
+                            {batchMode ? '退出批量' : '批量审批（待我审批）'}
+                          </button>
+                        )}
+                        {(flowScope === 'mine' || flowScope === 'agentable') && (
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={!agentable}
+                            onClick={() => {
+                              const t = todos.find((x) => x.relation === 'mine_todo' && x.agent && x.state === 'pending' && x.kind !== 'simple')
+                              if (t) {
+                                if (flowScope !== 'mine') setFlowScope('mine')
+                                runSingleCollab(t)
+                              }
+                            }}
+                          >
+                            一键推进可代办事项
+                          </button>
+                        )}
                         <button type="button" className="btn ghost" onClick={() => setArchiveView(true)}>
                           归档查看
                         </button>
@@ -1541,45 +1565,61 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="section-h" id="sec-mine">
-                    我的待办
-                    <button className="fold" onClick={() => setFoldMine((v) => !v)}>
-                      {foldMine ? '展开' : '折叠'}
-                    </button>
+                  <div className="section-h" id="sec-scope">
+                    {scopeTitle}
+                    <span className="hint">{scopedTodos.length}</span>
                   </div>
-                  {!foldMine &&
-                    DOMAINS.map((d) => {
-                      const rows = mine.filter((t) => t.domain === d)
-                      if (!rows.length) return null
-                      return (
-                        <div key={d}>
-                          <div className="domain-h">{d} · {rows.length}</div>
-                          {rows.map((t) => (
-                            <TodoCard
-                              key={t.id}
-                              t={t}
-                              batchMode={batchMode && t.kind !== 'simple'}
-                              checked={picked.includes(t.id)}
-                              onCheck={(on) => setPicked((p) => (on ? [...p, t.id] : p.filter((i) => i !== t.id)))}
-                              onOpen={() => setDetail(t)}
-                              onCollab={() => runSingleCollab(t)}
-                              onToggle={() => toggleSimple(t)}
-                            />
-                          ))}
-                        </div>
-                      )
-                    })}
-
-                  <div className="section-h" id="sec-init">
-                    我的申请
-                    <button className="fold" onClick={() => setFoldInit((v) => !v)}>
-                      {foldInit ? '展开' : '折叠'}
-                    </button>
-                  </div>
-                  {!foldInit &&
-                    initiated.map((t) => (
-                      <TodoCard key={t.id} t={t} onOpen={() => setDetail(t)} onNudge={() => say('agent', `已生成催办提醒给「${t.flow?.nodes.find((n) => n.status === 'current')?.actor}」，不会代为处理该节点。`)} />
-                    ))}
+                  {!scopedTodos.length && (
+                    <div className="empty-scope">
+                      {flowScope === 'running'
+                        ? '当前没有进行中的事项。'
+                        : flowScope === 'agentable'
+                          ? '当前没有 Agent 可推进的待办。'
+                          : flowScope === 'initiated'
+                            ? '当前没有我发起、他人处理中的申请。'
+                            : '当前没有待办。'}
+                    </div>
+                  )}
+                  {flowScope === 'mine' || flowScope === 'agentable'
+                    ? DOMAINS.map((d) => {
+                        const rows = scopedTodos.filter((t) => t.domain === d)
+                        if (!rows.length) return null
+                        return (
+                          <div key={d}>
+                            <div className="domain-h">{d} · {rows.length}</div>
+                            {rows.map((t) => (
+                              <TodoCard
+                                key={t.id}
+                                t={t}
+                                batchMode={flowScope === 'mine' && batchMode && t.kind !== 'simple'}
+                                checked={picked.includes(t.id)}
+                                onCheck={(on) => setPicked((p) => (on ? [...p, t.id] : p.filter((i) => i !== t.id)))}
+                                onOpen={() => setDetail(t)}
+                                onCollab={() => runSingleCollab(t)}
+                                onToggle={() => toggleSimple(t)}
+                              />
+                            ))}
+                          </div>
+                        )
+                      })
+                    : scopedTodos.map((t) => (
+                        <TodoCard
+                          key={t.id}
+                          t={t}
+                          onOpen={() => setDetail(t)}
+                          onCollab={t.relation === 'mine_todo' ? () => runSingleCollab(t) : undefined}
+                          onToggle={t.kind === 'simple' ? () => toggleSimple(t) : undefined}
+                          onNudge={
+                            t.relation === 'mine_initiated'
+                              ? () =>
+                                  say(
+                                    'agent',
+                                    `已生成催办提醒给「${t.flow?.nodes.find((n) => n.status === 'current')?.actor}」，不会代为处理该节点。`,
+                                  )
+                              : undefined
+                          }
+                        />
+                      ))}
                 </>
               ) : (
                 <>
