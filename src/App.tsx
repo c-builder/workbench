@@ -371,7 +371,8 @@ export default function App() {
   const initiated = initiatedAll.filter(match)
   const mineRunning = mine.filter((t) => t.state === 'running')
   const mineAgentable = mine.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple')
-  const initRunning = initiated.filter((t) => t.state === 'running')
+  // 我的申请：他人处理中的跟踪项多为 pending，业务上均视为「处理中」
+  const initRunning = initiated.filter((t) => t.state === 'pending' || t.state === 'running')
   const agentableList = mineAll.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple')
   const agentable = agentableList.length
   const archivedMine = archived.filter((t) => t.relation !== 'mine_initiated').filter(match)
