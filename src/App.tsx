@@ -98,6 +98,28 @@ function canOpenExternally(url: string) {
   return isValidAppUrl(url)
 }
 
+/** 地址栏与 Tab 是否为同一页（忽略末尾 /、主机大小写） */
+function sameAppUrl(a: string, b: string) {
+  const na = normalizeUrl(a)
+  const nb = normalizeUrl(b)
+  if (!na || !nb) return false
+  try {
+    const ua = new URL(na)
+    const ub = new URL(nb)
+    const path = (p: string) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p)
+    return (
+      ua.protocol === ub.protocol &&
+      ua.hostname.toLowerCase() === ub.hostname.toLowerCase() &&
+      ua.port === ub.port &&
+      path(ua.pathname) === path(ub.pathname) &&
+      ua.search === ub.search &&
+      ua.hash === ub.hash
+    )
+  } catch {
+    return na === nb
+  }
+}
+
 /** 应用中心不回填地址，引导用户主动输入 */
 function addrBarValueForTab(tab: BrowserTab) {
   return tab.id === 'home' || tab.kind === 'home' ? '' : tab.url
@@ -1060,6 +1082,8 @@ export default function App() {
   }
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0]
+  const addrSameAsTab = sameAppUrl(urlInput, currentTab.url)
+  const canGoAddress = isValidAppUrl(urlInput) && !addrSameAsTab
   const currentSessionTitle = sessionList.find((s) => s.id === sessionId)?.title || '当前任务'
   const filteredArtifacts = useMemo(
     () => artifacts.filter((a) => artifactSource === 'all' || a.source === artifactSource),
@@ -1103,6 +1127,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [previewOpen])
 
+  useEffect(() => {
+    const el = document.querySelector('.btab[data-active-tab="1"]')
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [activeTab, tabs.length])
+
   const openArtifactPreview = (id: string) => {
     setFileId(id)
     setPreviewOpen(true)
@@ -1127,11 +1156,12 @@ export default function App() {
     pushLog({ actor: 'human', action: `${source}打开 ${a.name}`, level: 'info', reversible: true, app: a.url })
   }
 
-  /** 地址栏「前往」：始终在工作台内置浏览器打开 */
+  /** 地址栏「前往」：内置浏览器始终新开 Tab（应用中心除外） */
   const navigateAddress = (raw: string) => {
     if (!isValidAppUrl(raw)) return
     const url = normalizeUrl(raw)
     if (!url) return
+    if (sameAppUrl(url, currentTab.url)) return
     const { kind, title } = tabMetaFromUrl(url, allApps)
     setPanel('app')
     setMobilePane('bench')
@@ -1146,22 +1176,12 @@ export default function App() {
       return
     }
 
+    const tab: BrowserTab = { id: uid('tab'), title, url, kind, controlDot: 'human' }
+    setTabs((ts) => [...ts, tab])
+    setActiveTab(tab.id)
     setUrlInput(url)
-
-    // 应用中心标签保留；从首页跳转时新开标签
-    if (currentTab.id === 'home' || currentTab.kind === 'home') {
-      const tab: BrowserTab = { id: uid('tab'), title, url, kind, controlDot: 'human' }
-      setTabs((ts) => [...ts, tab])
-      setActiveTab(tab.id)
-      if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
-      pushLog({ actor: 'human', action: `内置浏览器打开 ${title}`, level: 'info', reversible: true, app: url })
-      return
-    }
-
-    setTabs((ts) =>
-      ts.map((t) => (t.id === activeTab ? { ...t, url, kind, title, html: undefined } : t)),
-    )
-    pushLog({ actor: 'human', action: `内置浏览器跳转 ${title}`, level: 'info', reversible: true, app: url })
+    if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
+    pushLog({ actor: 'human', action: `内置浏览器新开 ${title}`, level: 'info', reversible: true, app: url })
   }
 
   const openInExternalBrowser = (url = currentTab.url) => {
@@ -1994,10 +2014,15 @@ export default function App() {
             <div className="browser">
               <div className="tabstrip">
                 {tabs.map((t) => (
-                  <div key={t.id} className={`btab ${t.id === activeTab ? 'active' : ''}`}>
+                  <div
+                    key={t.id}
+                    className={`btab ${t.id === activeTab ? 'active' : ''}`}
+                    data-active-tab={t.id === activeTab ? '1' : undefined}
+                  >
                     <button
-                      className="btab"
-                      style={{ padding: 0, border: 0, background: 'none', color: 'inherit' }}
+                      type="button"
+                      className="btab-label"
+                      title={t.title}
                       onClick={() => {
                         setActiveTab(t.id)
                         setUrlInput(addrBarValueForTab(t))
@@ -2009,11 +2034,13 @@ export default function App() {
                           title={control === 'agent' ? 'Agent 操作中' : '已暂停，待确认'}
                         />
                       )}
-                      {t.title}
+                      <span className="btab-title">{t.title}</span>
                     </button>
                     {t.id !== 'home' && (
                       <button
+                        type="button"
                         className="x"
+                        aria-label={`关闭 ${t.title}`}
                         onClick={() => {
                           const next = tabs.filter((x) => x.id !== t.id)
                           setTabs(next)
@@ -2038,7 +2065,7 @@ export default function App() {
                   className="addr-form"
                   onSubmit={(e) => {
                     e.preventDefault()
-                    if (!isValidAppUrl(urlInput)) return
+                    if (!canGoAddress) return
                     navigateAddress(urlInput)
                   }}
                 >
@@ -2060,9 +2087,13 @@ export default function App() {
                   <button
                     type="submit"
                     className="btn primary addr-go"
-                    disabled={!isValidAppUrl(urlInput)}
+                    disabled={!canGoAddress}
                     title={
-                      isValidAppUrl(urlInput) ? '在工作台内置浏览器中打开' : '请输入合法的 http(s) 应用地址'
+                      !isValidAppUrl(urlInput)
+                        ? '请输入合法的 http(s) 应用地址'
+                        : addrSameAsTab
+                          ? '当前页已是该地址'
+                          : '在内置浏览器中新开标签页'
                     }
                   >
                     前往

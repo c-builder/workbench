@@ -975,20 +975,35 @@ button { cursor: pointer; }
 }
 .placeholder .btn { margin-top: 14px; }
 .btab {
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-  padding: 6px 10px; border-radius: 10px 10px 0 0;
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  max-width: min(220px, 42vw);
+  padding: 6px 8px 6px 10px; border-radius: 10px 10px 0 0;
   border: 1px solid transparent; background: transparent;
-  font-size: 12px; color: var(--muted); max-width: 160px;
+  font-size: 12px; color: var(--muted);
 }
-.btab.active { background: var(--paper-2); color: var(--ink); border-color: var(--line); border-bottom-color: var(--paper-2); }
-.btab > button.btab {
-  min-width: 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.btab.active {
+  background: var(--paper-2); color: var(--ink);
+  border-color: var(--line); border-bottom-color: var(--paper-2);
+}
+.btab-label {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto;
+  padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.btab-title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* 避免 overflow 裁切首字左侧字形 */
+  padding-left: 1px;
 }
 .cdot { width: 7px; height: 7px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
 .cdot.agent { background: var(--agent); }
 .cdot.human { background: var(--human); }
 .cdot.paused { background: var(--paused); }
-.x { border: 0; background: none; color: var(--muted); padding: 0 2px; flex-shrink: 0; }
+.x {
+  border: 0; background: none; color: var(--muted);
+  padding: 0 2px; flex-shrink: 0; line-height: 1; cursor: pointer;
+}
+.x:hover { color: var(--ink); }
 .page {
   overflow: auto;
   background: #f6f3ec;
@@ -1661,7 +1676,7 @@ input.val {
 
   .file-list { padding: 12px; }
   .tabstrip { padding: 8px 8px 0; }
-  .btab { max-width: 132px; padding: 6px 8px; }
+  .btab { max-width: min(180px, 48vw); padding: 6px 8px; }
   .browser-chrome { flex-wrap: wrap; padding: 8px; gap: 6px; }
   .addr-ext { width: 100%; justify-content: center; }
   .home-head { flex-wrap: wrap; }
