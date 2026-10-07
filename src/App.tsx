@@ -1848,7 +1848,7 @@ export default function App() {
                               ['all', '全部', mine.length, true],
                               ['running', '进行中', mineRunning.length, mineRunning.length > 0],
                               ['agentable', '可推进', mineAgentable.length, mineAgentable.length > 0],
-                              ['done', '已完成', doneCount, doneCount > 0],
+                              ['done', '已完成', doneCount, true],
                             ] as const
                           )
                             .filter(([id, , , enabled]) => enabled || mineLens === id)
@@ -1865,14 +1865,14 @@ export default function App() {
                                 }}
                               >
                                 {label}
-                                <em>{n}</em>
+                                {!(id !== 'all' && n === 0) && <em>{n}</em>}
                               </button>
                             ))
                         : (
                             [
                               ['all', '全部', initiated.length, true],
                               ['running', '处理中', initRunning.length, initRunning.length > 0],
-                              ['done', '已完成', doneCount, doneCount > 0],
+                              ['done', '已完成', doneCount, true],
                             ] as const
                           )
                             .filter(([id, , , enabled]) => enabled || initLens === id)
@@ -1886,7 +1886,7 @@ export default function App() {
                                 onClick={() => setInitLens(id)}
                               >
                                 {label}
-                                <em>{n}</em>
+                                {!(id !== 'all' && n === 0) && <em>{n}</em>}
                               </button>
                             ))}
                     </div>
