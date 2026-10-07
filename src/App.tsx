@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
 import {
   appShortcuts,
   initialArchived,
@@ -302,7 +302,7 @@ export default function App() {
     e.currentTarget.blur()
   }
 
-  const onSplitterKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  const onSplitterKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const step = e.shiftKey ? 8 : 2
     if (e.key === 'ArrowLeft') {
       e.preventDefault()
@@ -877,7 +877,7 @@ export default function App() {
 
   useEffect(() => {
     if (!previewOpen) return
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') setPreviewOpen(false)
     }
     window.addEventListener('keydown', onKey)
