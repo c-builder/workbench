@@ -1247,7 +1247,7 @@ export default function App() {
                           name: f.name,
                           sub: `刚刚 · ${(f.size / 1024).toFixed(1)} KB`,
                           kind: (type === 'html' ? 'code' : 'doc') as Artifact['kind'],
-                          source: 'dialogue' as const,
+                          source: 'local' as const,
                           status: 'done' as const,
                           session,
                           pages: '1 页',
@@ -1850,12 +1850,13 @@ export default function App() {
                 <div className="file-filters">
                   {(
                     [
-                      ['all', '全部'],
-                      ['agent', 'Agent 代办'],
-                      ['dialogue', '对话产物'],
-                      ['flow', '流程产物'],
+                      ['all', '全部', sessionArtifacts.length],
+                      ['agent', 'Agent 产物', sessionArtifacts.filter((a) => a.source === 'agent').length],
+                      ['dialogue', '对话产物', sessionArtifacts.filter((a) => a.source === 'dialogue').length],
+                      ['flow', '流程产物', sessionArtifacts.filter((a) => a.source === 'flow').length],
+                      ['local', '我添加的', sessionArtifacts.filter((a) => a.source === 'local').length],
                     ] as const
-                  ).map(([id, label]) => (
+                  ).map(([id, label, n]) => (
                     <button
                       key={id}
                       type="button"
@@ -1863,6 +1864,7 @@ export default function App() {
                       onClick={() => setArtifactSource(id)}
                     >
                       {label}
+                      <em className="filter-count">{n}</em>
                     </button>
                   ))}
                 </div>
@@ -1873,9 +1875,8 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="file-group">
-                    <div className="section-h section-h-inline">
+                    <div className="section-h">
                       <span>产物列表</span>
-                      <span className="section-count">{filteredArtifacts.length}</span>
                     </div>
                     {filteredArtifacts.map((a) => (
                       <div

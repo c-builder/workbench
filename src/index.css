@@ -980,7 +980,15 @@ input.val {
 .file-filters {
   display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;
 }
-.file-filters .btn { padding: 4px 8px; font-size: 11px; }
+.file-filters .btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 11px;
+}
+.file-filters .filter-count {
+  font-style: normal; font-weight: 700;
+  font-variant-numeric: tabular-nums; opacity: 0.75;
+}
+.file-filters .btn.primary .filter-count { opacity: 0.9; }
 .file-group { margin-bottom: 8px; }
 .file-row {
   display: flex; align-items: flex-start; gap: 4px;
@@ -1011,6 +1019,7 @@ input.val {
 .file-src.agent { background: rgba(31, 107, 74, 0.12); color: var(--forest); }
 .file-src.dialogue { background: rgba(76, 61, 153, 0.1); color: #4c3d99; }
 .file-src.flow { background: rgba(184, 92, 56, 0.12); color: var(--human); }
+.file-src.local { background: #f0f0ee; color: #5c5c59; }
 .file-row-actions {
   display: flex; align-items: center; gap: 4px;
   flex-shrink: 0; margin: 8px 6px 0 0;
