@@ -191,7 +191,8 @@ export default function App() {
   const [batchChecked, setBatchChecked] = useState<string[]>([])
   const [batchConfirm, setBatchConfirm] = useState(false)
   const [artifacts, setArtifacts] = useState<Artifact[]>(initialArtifacts)
-  const [fileId, setFileId] = useState(initialArtifacts[0].id)
+  const [fileId, setFileId] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [artifactSource, setArtifactSource] = useState<'all' | ArtifactSource>('all')
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null)
   const [cursor, setCursor] = useState({ x: 40, y: 80, on: false })
@@ -370,6 +371,7 @@ export default function App() {
   const addArtifact = (a: Artifact) => {
     setArtifacts((list) => [a, ...list])
     setFileId(a.id)
+    if (a.status !== 'generating') setPreviewOpen(true)
   }
 
   async function runSingleCollab(todo: Todo, fromDetail = false) {
@@ -859,15 +861,33 @@ export default function App() {
     () => sessionArtifacts.filter((a) => artifactSource === 'all' || a.source === artifactSource),
     [sessionArtifacts, artifactSource],
   )
-  const file = filteredArtifacts.find((a) => a.id === fileId) || filteredArtifacts[0]
+  const file = filteredArtifacts.find((a) => a.id === fileId)
 
   useEffect(() => {
     if (!filteredArtifacts.length) {
-      if (fileId) setFileId('')
+      setFileId('')
+      setPreviewOpen(false)
       return
     }
-    if (!filteredArtifacts.some((a) => a.id === fileId)) setFileId(filteredArtifacts[0].id)
+    if (fileId && !filteredArtifacts.some((a) => a.id === fileId)) {
+      setFileId('')
+      setPreviewOpen(false)
+    }
   }, [filteredArtifacts, fileId])
+
+  useEffect(() => {
+    if (!previewOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [previewOpen])
+
+  const openArtifactPreview = (id: string) => {
+    setFileId(id)
+    setPreviewOpen(true)
+  }
 
   const openAppTab = (a: { id: string; name: string; url: string }, source: '应用中心' | '新增应用') => {
     const kind: BrowserTab['kind'] =
@@ -1235,7 +1255,7 @@ export default function App() {
                         }
                       })
                       setArtifacts((list) => [...added, ...list])
-                      setFileId(added[0].id)
+                      openArtifactPreview(added[0].id)
                       setPanel('files')
                       setArtifactSource('all')
                       setMobilePane('bench')
@@ -1846,9 +1866,6 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <div className="file-task-label" title={currentSessionTitle}>
-                  当前任务 · {currentSessionTitle}
-                </div>
                 {!filteredArtifacts.length ? (
                   <div className="rail-empty" style={{ padding: '28px 8px' }}>
                     <b>本任务暂无产物</b>
@@ -1856,13 +1873,16 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="file-group">
-                    <div className="section-h">
+                    <div className="section-h section-h-inline">
                       <span>产物列表</span>
-                      <span className="hint">{filteredArtifacts.length}</span>
+                      <span className="section-count">{filteredArtifacts.length}</span>
                     </div>
                     {filteredArtifacts.map((a) => (
-                      <div key={a.id} className={`file-row ${file?.id === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}>
-                        <button type="button" className="file-item" onClick={() => setFileId(a.id)}>
+                      <div
+                        key={a.id}
+                        className={`file-row ${previewOpen && file?.id === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}
+                      >
+                        <button type="button" className="file-item" onClick={() => openArtifactPreview(a.id)}>
                           <b>
                             <span className="file-type">{typeLabel(a.type)}</span>
                             {a.name}
@@ -1874,52 +1894,89 @@ export default function App() {
                           </span>
                         </button>
                         {a.status !== 'generating' && (
-                          <button type="button" className="file-dl" onClick={() => downloadArtifact(a)}>
-                            下载
-                          </button>
+                          <div className="file-row-actions">
+                            <button
+                              type="button"
+                              className="file-act"
+                              onClick={() => openArtifactPreview(a.id)}
+                            >
+                              预览
+                            </button>
+                            <button type="button" className="file-act" onClick={() => downloadArtifact(a)}>
+                              下载
+                            </button>
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="preview">
-                {!file ? (
-                  <div className="preview-empty">
-                    <b>选择左侧产物预览</b>
-                    <p>在工作台内快速查看内容，无需先下载。HTML 产物还可在应用面板打开。</p>
-                  </div>
-                ) : (
+              <div
+                className={`preview-drawer${previewOpen && file ? ' open' : ''}`}
+                role="dialog"
+                aria-modal="true"
+                aria-label={file ? `预览 ${file.name}` : '产物预览'}
+                aria-hidden={!previewOpen || !file}
+              >
+                {file && (
                   <>
                     <div className="preview-head">
+                      <button
+                        type="button"
+                        className="preview-back"
+                        onClick={() => setPreviewOpen(false)}
+                        aria-label="关闭预览"
+                      >
+                        <IconChevron />
+                        返回列表
+                      </button>
                       <h3>{file.name}</h3>
-                      {file.type === 'html' && file.status !== 'generating' && (
+                      <div className="preview-head-actions">
+                        {file.type === 'html' && file.status !== 'generating' && (
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => {
+                              const tab: BrowserTab = {
+                                id: uid('tab'),
+                                title: file.name,
+                                url: 'hengtai://artifact/' + file.id,
+                                kind: 'html',
+                                html: file.preview,
+                                controlDot: 'human',
+                              }
+                              setTabs((ts) => [...ts, tab])
+                              setActiveTab(tab.id)
+                              setUrlInput(tab.url)
+                              setPanel('app')
+                              setMobilePane('bench')
+                              setPreviewOpen(false)
+                              if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
+                              say('agent', `已在应用面板打开 ${file.name}，控制权归你。`)
+                            }}
+                          >
+                            在应用中打开
+                          </button>
+                        )}
+                        {file.status !== 'generating' && (
+                          <button type="button" className="btn" onClick={() => downloadArtifact(file)}>
+                            下载
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="btn"
-                          onClick={() => {
-                            const tab: BrowserTab = {
-                              id: uid('tab'),
-                              title: file.name,
-                              url: 'hengtai://artifact/' + file.id,
-                              kind: 'html',
-                              html: file.preview,
-                              controlDot: 'human',
-                            }
-                            setTabs((ts) => [...ts, tab])
-                            setActiveTab(tab.id)
-                            setUrlInput(tab.url)
-                            setPanel('app')
-                            setMobilePane('bench')
-                            if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
-                            say('agent', `已在应用面板打开 ${file.name}，控制权归你。`)
-                          }}
+                          className="sheet-close"
+                          aria-label="关闭"
+                          onClick={() => setPreviewOpen(false)}
                         >
-                          在应用中打开
+                          ×
                         </button>
-                      )}
+                      </div>
                     </div>
-                    <ArtifactPreview artifact={file} />
+                    <div className="preview-drawer-body">
+                      <ArtifactPreview artifact={file} />
+                    </div>
                   </>
                 )}
               </div>
