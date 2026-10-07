@@ -1853,7 +1853,7 @@ export default function App() {
                       ['all', '全部'],
                       ['agent', 'Agent 代办'],
                       ['dialogue', '对话产物'],
-                      ['flow', '流程联动'],
+                      ['flow', '流程产物'],
                     ] as const
                   ).map(([id, label]) => (
                     <button

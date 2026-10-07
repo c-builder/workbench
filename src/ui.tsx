@@ -48,7 +48,7 @@ export function typeLabel(t: Artifact['type']) {
 
 export function sourceLabel(s: Artifact['source']) {
   if (s === 'agent') return 'Agent 代办'
-  if (s === 'flow') return '流程联动'
+  if (s === 'flow') return '流程产物'
   if (s === 'dialogue') return '对话产物'
   return '本地'
 }
