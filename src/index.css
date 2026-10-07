@@ -826,12 +826,36 @@ button { cursor: pointer; }
 .hint { font-size: 12px; color: var(--muted); padding: 8px 2px; }
 
 /* Browser */
-.browser { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr auto; }
+.browser { flex: 1; min-height: 0; display: grid; grid-template-rows: auto auto 1fr auto; }
 .tabstrip {
   display: flex; align-items: center; gap: 4px; padding: 8px 10px 0;
   overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
+.browser-chrome {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.addr-form {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.addr-input {
+  flex: 1; min-width: 0; height: 32px;
+  border: 1px solid var(--line); border-radius: 9px;
+  padding: 0 10px; background: #fff; font-size: 12px; color: var(--ink);
+  font-family: var(--mono);
+}
+.addr-input:focus {
+  outline: none; border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px rgba(26, 46, 36, 0.06);
+}
+.addr-go, .addr-ext {
+  flex-shrink: 0; padding: 6px 10px; font-size: 12px; white-space: nowrap;
+}
+.placeholder .btn { margin-top: 14px; }
 .btab {
   display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   padding: 6px 10px; border-radius: 10px 10px 0 0;
@@ -1511,6 +1535,8 @@ input.val {
   .file-list { padding: 12px; }
   .tabstrip { padding: 8px 8px 0; }
   .btab { max-width: 132px; padding: 6px 8px; }
+  .browser-chrome { flex-wrap: wrap; padding: 8px; gap: 6px; }
+  .addr-ext { width: 100%; justify-content: center; }
   .home-head { flex-wrap: wrap; }
   .logs.has-logs { max-height: 160px; }
   .logs.has-logs.open { max-height: 46vh; }

@@ -30,6 +30,40 @@ import { downloadArtifact, execLabel, NodeStrip, nowStamp, sourceLabel, typeLabe
 
 const ONBOARD_KEY = 'hengtai-onboard-v1'
 const DOMAINS: Domain[] = ['报销', '采购', 'HR', '行政', '项目协作']
+
+const APPS_HOME_URL = 'https://hengtai.internal/apps'
+
+function normalizeUrl(raw: string) {
+  const t = raw.trim()
+  if (!t) return ''
+  if (/^https?:\/\//i.test(t)) return t
+  return `https://${t}`
+}
+
+function isAppsHomeUrl(url: string) {
+  try {
+    const u = new URL(url)
+    return u.hostname === 'hengtai.internal' && /^\/apps\/?$/.test(u.pathname)
+  } catch {
+    return false
+  }
+}
+
+function tabMetaFromUrl(url: string): { kind: BrowserTab['kind']; title: string } {
+  if (isAppsHomeUrl(url)) return { kind: 'home', title: '应用中心' }
+  if (/w3\.internal/i.test(url) || /\/w3\b/i.test(url)) return { kind: 'w3', title: 'W3 审批' }
+  if (/ebuy\.internal/i.test(url) || /\/ebuy\b/i.test(url)) return { kind: 'ebuy', title: 'eBuy' }
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '')
+    return { kind: 'external', title: host || '网页' }
+  } catch {
+    return { kind: 'external', title: '网页' }
+  }
+}
+
+function canOpenExternally(url: string) {
+  return /^https?:\/\//i.test(url)
+}
 const MODELS = [
   { id: 'hy4', name: 'Hy4 preview', brand: 'hy', free: true, cost: '0.00x' },
   { id: 'hy3', name: 'Hy3', brand: 'hy', free: true, cost: '0.00x' },
@@ -171,10 +205,10 @@ export default function App() {
   const composerInputRef = useRef<HTMLTextAreaElement>(null)
 
   const [tabs, setTabs] = useState<BrowserTab[]>([
-    { id: 'home', title: '应用中心', url: 'hengtai://apps', kind: 'home', controlDot: 'none' },
+    { id: 'home', title: '应用中心', url: APPS_HOME_URL, kind: 'home', controlDot: 'none' },
   ])
   const [activeTab, setActiveTab] = useState('home')
-  const [urlInput, setUrlInput] = useState('hengtai://apps')
+  const [urlInput, setUrlInput] = useState(APPS_HOME_URL)
   const [customApps, setCustomApps] = useState<{ id: string; name: string; url: string; desc: string }[]>([])
   const [addAppOpen, setAddAppOpen] = useState(false)
   const [newAppName, setNewAppName] = useState('')
@@ -908,12 +942,56 @@ export default function App() {
     pushLog({ actor: 'human', action: `${source}打开 ${a.name}`, level: 'info', reversible: true, app: a.url })
   }
 
+  const navigateAddress = (raw: string) => {
+    const url = normalizeUrl(raw)
+    if (!url) return
+    const { kind, title } = tabMetaFromUrl(url)
+    setUrlInput(url)
+
+    if (kind === 'home') {
+      setActiveTab('home')
+      setTabs((ts) => ts.map((t) => (t.id === 'home' ? { ...t, url, kind: 'home', title: '应用中心' } : t)))
+      pushLog({ actor: 'human', action: '地址栏打开应用中心', level: 'info', reversible: true, app: url })
+      return
+    }
+
+    // 应用中心标签保留；从首页跳转时新开标签
+    if (currentTab.id === 'home' || currentTab.kind === 'home') {
+      const tab: BrowserTab = { id: uid('tab'), title, url, kind, controlDot: 'human' }
+      setTabs((ts) => [...ts, tab])
+      setActiveTab(tab.id)
+      if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
+      pushLog({ actor: 'human', action: `地址栏打开 ${title}`, level: 'info', reversible: true, app: url })
+      return
+    }
+
+    // 表单 / 批量 / HTML 预览页改址时切到目标浏览态
+    setTabs((ts) =>
+      ts.map((t) =>
+        t.id === activeTab ? { ...t, url, kind, title, html: undefined } : t,
+      ),
+    )
+    pushLog({ actor: 'human', action: `地址栏跳转 ${url}`, level: 'info', reversible: true, app: url })
+  }
+
+  const openInExternalBrowser = (url = currentTab.url) => {
+    if (!canOpenExternally(url)) return
+    window.open(url, '_blank', 'noopener,noreferrer')
+    pushLog({
+      actor: 'human',
+      action: `在外部浏览器打开 ${url}`,
+      level: 'info',
+      reversible: true,
+      app: url,
+    })
+  }
+
   const submitNewApp = () => {
     const name = newAppName.trim()
     const desc = newAppDesc.trim() || '自定义应用'
     let url = newAppUrl.trim()
     if (!name || !url) return
-    if (!/^https?:|^hengtai:/i.test(url)) url = 'https://' + url
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url
     const app = { id: uid('app'), name, url, desc }
     setCustomApps((list) => [...list, app])
     setAddAppOpen(false)
@@ -1757,6 +1835,44 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              <div className="browser-chrome">
+                <form
+                  className="addr-form"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    navigateAddress(urlInput)
+                  }}
+                >
+                  <label className="sr-only" htmlFor="browser-addr">
+                    地址栏
+                  </label>
+                  <input
+                    id="browser-addr"
+                    className="addr-input"
+                    value={urlInput}
+                    placeholder="例如 https://w3.internal/todo"
+                    spellCheck={false}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button type="submit" className="btn addr-go" title="跳转">
+                    前往
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  className="btn addr-ext"
+                  disabled={!canOpenExternally(currentTab.url)}
+                  title={
+                    canOpenExternally(currentTab.url)
+                      ? '在系统默认浏览器中打开当前页'
+                      : '仅 http/https 地址可外开'
+                  }
+                  onClick={() => openInExternalBrowser(currentTab.url)}
+                >
+                  在外部浏览器打开
+                </button>
+              </div>
               <div className="page">
                 {cursor.on && control === 'agent' && (
                   <div className="agent-cursor" style={{ left: cursor.x, top: cursor.y }} />
@@ -1766,7 +1882,7 @@ export default function App() {
                     <div className="home-head">
                       <div>
                         <h2>应用中心</h2>
-                        <p className="hint">点选应用打开；进入页面后默认由 Agent 协同处理当前上下文。</p>
+                        <p className="hint">点选应用打开；进入后控制权默认归你，可再交给 Agent 处理当前页。</p>
                       </div>
                       <button className="btn" onClick={() => setAddAppOpen(true)}>
                         <IconPlus /> 新增应用
@@ -1827,10 +1943,15 @@ export default function App() {
                 {currentTab.kind === 'external' && (
                   <div className="placeholder">
                     <h3>演示环境占位页</h3>
-                    <p>该站点在演示中以内嵌页展示；可在上方交给 Agent 处理当前上下文。</p>
+                    <p>演示中不嵌入真实站点；已记录网址。可外开系统浏览器，或在对话里让 Agent 处理当前页。</p>
                     <p>
                       <code>{currentTab.url}</code>
                     </p>
+                    {canOpenExternally(currentTab.url) && (
+                      <button type="button" className="btn primary" onClick={() => openInExternalBrowser(currentTab.url)}>
+                        在外部浏览器打开
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1966,7 +2087,7 @@ export default function App() {
                               const tab: BrowserTab = {
                                 id: uid('tab'),
                                 title: file.name,
-                                url: 'hengtai://artifact/' + file.id,
+                                url: `https://hengtai.internal/artifact/${file.id}`,
                                 kind: 'html',
                                 html: file.preview,
                                 controlDot: 'human',
@@ -2119,7 +2240,7 @@ export default function App() {
                 <input
                   className="val"
                   value={newAppUrl}
-                  placeholder="https:// 或 hengtai://"
+                  placeholder="https://fee.internal"
                   onChange={(e) => setNewAppUrl(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && submitNewApp()}
                 />
