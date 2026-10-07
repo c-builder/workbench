@@ -7,9 +7,9 @@ export function NodeStrip({ nodes }: { nodes: NonNullable<Todo['flow']>['nodes']
         <div key={n.label} className={`node ${n.status}`}>
           <div className="n-label">
             <span className="dot" />
-            {n.label}
+            <span>{n.label}</span>
           </div>
-          <div>{n.actor}</div>
+          <div className="n-actor">{n.actor}</div>
         </div>
       ))}
     </div>

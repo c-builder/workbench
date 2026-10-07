@@ -2702,55 +2702,82 @@ function TodoCard({
 }) {
   const mine = t.relation === 'mine_todo'
   const simple = t.kind === 'simple'
+  const current = t.flow?.nodes?.find((n) => n.status === 'current')
+  const dueUrgent = t.pri === 'high' || t.due.includes('今天')
   return (
-    <div className={`card ${t.state === 'running' ? 'running' : ''}`} data-agentable={mine && t.agent && t.state === 'pending' && !simple ? '1' : undefined}>
-      <div className="card-top">
-        {batchMode && mine && !simple && (
-          <input className="check" type="checkbox" checked={!!checked} onChange={(e) => onCheck?.(e.target.checked)} onClick={(e) => e.stopPropagation()} />
-        )}
-        {simple && mine && (
+    <div
+      className={`card ${t.state === 'running' ? 'running' : ''}`}
+      data-agentable={mine && t.agent && t.state === 'pending' && !simple ? '1' : undefined}
+      onClick={onOpen}
+    >
+      <div className="card-head">
+        {(batchMode && mine && !simple) || (simple && mine) ? (
           <input
             className="check"
             type="checkbox"
-            checked={t.state === 'done'}
-            onChange={() => onToggle?.()}
+            checked={simple ? t.state === 'done' : !!checked}
+            onChange={(e) => (simple ? onToggle?.() : onCheck?.(e.target.checked))}
             onClick={(e) => e.stopPropagation()}
-            title="普通任务可手动勾选完成"
+            title={simple ? '普通任务可手动勾选完成' : undefined}
           />
-        )}
-        <div style={{ flex: 1 }} onClick={onOpen}>
-          <h3>{t.title}</h3>
-          <div className="meta">
-            {t.subtitle}
-            {t.amount ? ` · ${t.amount}` : ''} · 截止 {t.due}
+        ) : null}
+        <div className="card-head-main">
+          <div className="card-title-row">
+            <h3>{t.title}</h3>
+            <div className="card-aside">
+              {t.amount ? <div className="card-amount">{t.amount}</div> : null}
+              <div className={`card-due${dueUrgent ? ' urgent' : ''}`}>截止 {t.due}</div>
+            </div>
           </div>
+          <div className="meta">{t.subtitle}</div>
           <div className="badges">
             <span className={`badge ${t.pri}`}>{t.pri === 'high' ? '紧急' : t.pri === 'mid' ? '普通' : '低'}</span>
             <span className="badge">{t.domain}</span>
-            <span className="badge" title="应用">{t.app}</span>
+            <span className="badge" title="应用">
+              {t.app}
+            </span>
             {simple && <span className="badge">普通任务</span>}
-            {mine ? <span className="badge mine">我的待办</span> : <span className="badge track">我的申请 · 处理中</span>}
+            {!mine && <span className="badge track">我的申请 · 处理中</span>}
+            {t.state === 'running' && <span className="badge mine">进行中</span>}
           </div>
-          {t.flow?.nodes && <NodeStrip nodes={t.flow.nodes} />}
-          {!t.flow?.nodes && !simple && <div className="hint">未读取到处理历程，已隐藏流程区块。</div>}
         </div>
       </div>
-      <div className="card-actions">
-        {mine && t.state !== 'done' && !simple && (
-          <button className="btn primary" onClick={onCollab}>
-            协同处理
-          </button>
-        )}
-        {simple && mine && t.state !== 'done' && (
-          <button className="btn" onClick={onToggle}>
-            勾选完成
-          </button>
-        )}
-        {!mine && (
-          <button className="btn" onClick={onNudge}>
-            催办提醒
-          </button>
-        )}
+
+      {t.flow?.nodes ? (
+        <div className="card-flow" onClick={(e) => e.stopPropagation()}>
+          <NodeStrip nodes={t.flow.nodes} />
+        </div>
+      ) : !simple ? (
+        <div className="card-flow-empty">未读取到处理历程，已隐藏流程区块。</div>
+      ) : null}
+
+      <div className="card-foot">
+        <div className="card-foot-hint">
+          {current
+            ? mine
+              ? `当前节点：${current.label} · ${current.actor}`
+              : `处理人：${current.actor} · ${current.label}`
+            : simple
+              ? '普通任务，勾选即可完成'
+              : '点击查看详情'}
+        </div>
+        <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+          {mine && t.state !== 'done' && !simple && (
+            <button type="button" className="btn primary" onClick={onCollab}>
+              协同处理
+            </button>
+          )}
+          {simple && mine && t.state !== 'done' && (
+            <button type="button" className="btn" onClick={onToggle}>
+              勾选完成
+            </button>
+          )}
+          {!mine && (
+            <button type="button" className="btn" onClick={onNudge}>
+              催办提醒
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
