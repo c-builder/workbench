@@ -1712,21 +1712,28 @@ export default function App() {
           <div className="tabs">
             {(
               [
-                ['flow', '流程活动', mineAll.length],
-                ['app', '应用', tabs.length],
-                ['files', '产物与文件', artifacts.length],
+                ['flow', '流程活动', mineAll.length, '待我处理的流程待办'],
+                [
+                  'app',
+                  '应用',
+                  tabs.filter((t) => t.id !== 'home' && t.kind !== 'home').length,
+                  '已打开的应用标签（不含应用中心）',
+                ],
+                ['files', '产物与文件', artifacts.length, '当前可见产物数量'],
               ] as const
-            ).map(([id, label, count]) => (
+            ).map(([id, label, count, tip]) => (
               <button
                 key={id}
+                type="button"
                 className={`tab ${panel === id ? 'active' : ''}`}
+                title={tip}
                 onClick={() => {
                   setPanel(id)
                   setMobilePane('bench')
                 }}
               >
                 {label}
-                <span className="count">{count}</span>
+                {!(id === 'app' && count === 0) && <span className="count">{count}</span>}
               </button>
             ))}
         </div>
