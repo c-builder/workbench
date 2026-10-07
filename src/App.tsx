@@ -1803,15 +1803,15 @@ export default function App() {
                       <span className="scope-count">{initiatedAll.length}</span>
                     </button>
                   </div>
-                  <input
-                    className="search flow-search"
-                    placeholder={
-                      flowRelation === 'mine' ? '搜索待办名称或应用' : '搜索申请名称或应用'
-                    }
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                  <div className="flow-filters">
+                  <div className="flow-query-row">
+                    <input
+                      className="search flow-search"
+                      placeholder={
+                        flowRelation === 'mine' ? '搜索待办名称或应用' : '搜索申请名称或应用'
+                      }
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
                     <label className="domain-select-wrap">
                       <span className="sr-only">业务分类</span>
                       <select
@@ -1828,63 +1828,81 @@ export default function App() {
                         ))}
                       </select>
                     </label>
+                  </div>
+                  <div className="flow-meta-row">
                     <div
                       className="lens-segment"
                       role="radiogroup"
                       aria-label={flowRelation === 'mine' ? '待办视角' : '申请视角'}
                     >
-                      {flowRelation === 'mine'
-                        ? (
-                                [
-                                  ['all', '全部', mine.length, true],
-                                  ['running', '进行中', mineRunning.length, mineRunning.length > 0],
-                                  ['agentable', '可推进', mineAgentable.length, mineAgentable.length > 0],
-                                  ['done', '已完成', doneCount, doneCount > 0],
-                                ] as const
-                          ).map(([id, label, n, enabled]) => (
+                      {(flowRelation === 'mine'
+                        ? ([
+                            ['all', '全部', mine.length, true],
+                            ['running', '进行中', mineRunning.length, mineRunning.length > 0],
+                            ['agentable', '可推进', mineAgentable.length, mineAgentable.length > 0],
+                            ['done', '已完成', doneCount, doneCount > 0],
+                          ] as const)
+                        : ([
+                            ['all', '全部', initiated.length, true],
+                            ['running', '处理中', initRunning.length, initRunning.length > 0],
+                            ['done', '已完成', doneCount, doneCount > 0],
+                          ] as const)
+                      )
+                        .filter(([, , , enabled], i, arr) => {
+                          const id = arr[i][0]
+                          // 零值视角隐藏；当前选中的仍保留，避免状态丢失
+                          if (!enabled && id !== 'all') {
+                            return flowRelation === 'mine' ? mineLens === id : initLens === id
+                          }
+                          return true
+                        })
+                        .map(([id, label, n]) => {
+                          const on = flowRelation === 'mine' ? mineLens === id : initLens === id
+                          return (
                             <button
                               key={id}
                               type="button"
                               role="radio"
-                              aria-checked={mineLens === id}
-                              className={`${mineLens === id ? 'on' : ''}${enabled ? '' : ' is-muted'}`}
-                              disabled={!enabled}
-                              title={enabled ? undefined : `暂无${label}`}
+                              aria-checked={on}
+                              className={on ? 'on' : ''}
                               onClick={() => {
-                                if (!enabled) return
-                                setMineLens(id)
-                                if (id === 'done') setBatchMode(false)
+                                if (flowRelation === 'mine') {
+                                  setMineLens(id)
+                                  if (id === 'done') setBatchMode(false)
+                                } else {
+                                  setInitLens(id)
+                                }
                               }}
                             >
                               {label}
                               <em>{n}</em>
                             </button>
-                          ))
-                        : (
-                            [
-                              ['all', '全部', initiated.length, true],
-                              ['running', '处理中', initRunning.length, initRunning.length > 0],
-                              ['done', '已完成', doneCount, doneCount > 0],
-                            ] as const
-                          ).map(([id, label, n, enabled]) => (
-                            <button
-                              key={id}
-                              type="button"
-                              role="radio"
-                              aria-checked={initLens === id}
-                              className={`${initLens === id ? 'on' : ''}${enabled ? '' : ' is-muted'}`}
-                              disabled={!enabled}
-                              title={enabled ? undefined : `暂无${label}`}
-                              onClick={() => {
-                                if (!enabled) return
-                                setInitLens(id)
-                              }}
-                            >
-                              {label}
-                              <em>{n}</em>
-                            </button>
-                          ))}
+                          )
+                        })}
                     </div>
+                    {flowRelation === 'mine' && !viewingDone ? (
+                      <div className="flow-actions">
+                        <button
+                          type="button"
+                          className={`btn flow-batch-btn${batchMode ? ' on' : ''}`}
+                          onClick={() => {
+                            setBatchMode((v) => !v)
+                            setPicked([])
+                          }}
+                        >
+                          {batchMode ? '退出批量' : '批量审批'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn primary flow-advance-btn"
+                          disabled={!agentable}
+                          title={agentable ? `推进全部 ${agentable} 条可代办` : '暂无可代办事项'}
+                          onClick={runOneClickAdvance}
+                        >
+                          一键推进{agentable ? ` ${agentable}` : ''}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                   {viewingDone && (
                     <div className="flow-filters flow-filters-exec" role="radiogroup" aria-label="按执行方式筛选">
@@ -1902,48 +1920,6 @@ export default function App() {
                       ))}
                     </div>
                   )}
-                  <div className="flow-actions">
-                    {flowRelation === 'mine' && !viewingDone && (
-                      <>
-                        <button
-                          type="button"
-                          className={`flow-action-link${batchMode ? ' on' : ''}`}
-                          onClick={() => {
-                            setBatchMode((v) => !v)
-                            setPicked([])
-                          }}
-                        >
-                          {batchMode ? '退出批量审批' : '批量审批'}
-                        </button>
-                        <span className="flow-action-sep" aria-hidden>
-                          ·
-                        </span>
-                        <button
-                          type="button"
-                          className="flow-action-link"
-                          disabled={!agentable}
-                          title={agentable > 1 ? `推进全部 ${agentable} 条可代办` : '推进可代办事项'}
-                          onClick={runOneClickAdvance}
-                        >
-                          一键推进{agentable > 1 ? `（${agentable}）` : ''}
-                        </button>
-                        <span className="flow-action-sep" aria-hidden>
-                          ·
-                        </span>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      className={`flow-action-link${viewingDone ? ' on' : ''}`}
-                      onClick={() => {
-                        if (flowRelation === 'mine') setMineLens('done')
-                        else setInitLens('done')
-                        setBatchMode(false)
-                      }}
-                    >
-                      归档查看
-                    </button>
-                  </div>
                 </div>
               </div>
               {batchMode && flowRelation === 'mine' && !viewingDone && (
