@@ -548,11 +548,16 @@ export default function App() {
   }
 
   const archiveTodos = (ids: string[], execBy: Todo['execBy']) => {
+    const move: Todo[] = []
     setTodos((list) => {
-      const move = list.filter((t) => ids.includes(t.id)).map((t) => ({ ...t, state: 'done' as const, execBy }))
-      setArchived((a) => [...move, ...a])
+      move.length = 0
+      for (const t of list) {
+        if (ids.includes(t.id)) move.push({ ...t, state: 'done', execBy })
+      }
+      if (!move.length) return list
       return list.filter((t) => !ids.includes(t.id))
     })
+    if (move.length) setArchived((a) => [...move, ...a])
   }
 
   /** 提交完成：归档 + 节点流转；他人节点进入「我的申请」 */
@@ -560,11 +565,17 @@ export default function App() {
     const notes: string[] = []
     let addedInitiated = 0
     let addedMine = 0
+    const archivedItems: Todo[] = []
+    const followUps: Todo[] = []
     setTodos((list) => {
       const done = list.filter((t) => ids.includes(t.id))
+      if (!done.length) return list
       const rest = list.filter((t) => !ids.includes(t.id))
-      const archivedItems: Todo[] = []
-      const followUps: Todo[] = []
+      archivedItems.length = 0
+      followUps.length = 0
+      notes.length = 0
+      addedInitiated = 0
+      addedMine = 0
       for (const t of done) {
         const { archived, followUp, note } = advanceAfterSubmit(t, execBy)
         archivedItems.push(archived)
@@ -575,9 +586,11 @@ export default function App() {
           else addedMine += 1
         }
       }
-      setArchived((a) => [...archivedItems, ...a])
       return [...followUps, ...rest]
     })
+    if (archivedItems.length) {
+      setArchived((a) => [...archivedItems, ...a])
+    }
     if (addedInitiated) setFlowRelation('initiated')
     else if (addedMine) setFlowRelation('mine')
     return { notes, addedInitiated, addedMine }
@@ -649,7 +662,7 @@ export default function App() {
     if (!(await step(480, `打开 ${todo.app} · ${todo.title}`))) return
     if (todo.domain === '采购' || todo.id === 't4') {
       if (!(await step(640, '从群聊抽取三位评委意见'))) return
-      fillField('opinion', '张工：兼容现网，有条件通过；赵工：需补备件清单。', '群聊')
+      fillField('opinion', '张伟：PCIe 与现网 H100 兼容，有条件通过；赵磊：需补备件清单与备机方案。', '群聊')
       if (!(await step(640, '从邮件读取评分表（平均 82.6）'))) return
       fillField('score', '82.6 / 有条件通过', '邮件附件')
       if (!(await step(560, '对照评审会纪要：待补安全扫描报告'))) return
@@ -1073,7 +1086,7 @@ export default function App() {
         'agent',
         last.length
           ? `对照如下：\n${last.map((l) => `· ${l.time} ${l.action}`).join('\n')}`
-          : '最近一次预审：李娜深圳拜访金额超预算且发票差 ¥180，其余建议同意。差异项默认不会被批量提交。',
+          : '最近一次预审：李思远深圳拜访超预算且发票差 ¥180，其余建议同意。差异项默认不会被批量提交。',
       )
       return
     }
@@ -1642,7 +1655,7 @@ export default function App() {
                         className="model-menu-foot"
                         onClick={() => {
                           setModeMenuOpen(false)
-                          say('agent', '自定义模型配置入口已预留，当前演示可直接切换上方模型列表。')
+                          say('agent', '自定义模型配置入口已预留，当前可直接切换上方模型列表。')
                         }}
                       >
                         <IconPencil />
@@ -2184,7 +2197,7 @@ export default function App() {
                   <div className="placeholder">
                     <h3>已在内置浏览器打开</h3>
                     <p>
-                      演示环境不嵌入真实内网站点，以占位页保留现场。需要时可改用系统浏览器，或在对话里让 Agent
+                      内网站点在工作台内以安全占位页呈现现场。需要时可改用系统浏览器，或在对话里让 Agent
                       处理当前页。
                     </p>
                     <p>
@@ -2877,11 +2890,21 @@ function W3Form({
       <div className="mock-app">
         {nodes && <NodeStrip nodes={nodes} />}
         {todo?.flow?.nodes ? (
-          todo.relation === 'mine_todo' || todo.state === 'done' ? (
-            <p className="hint">当前「{nodes?.find((n) => n.status === 'current')?.label}」节点负责人是你，形成待办。</p>
-          ) : (
-            <p className="hint">该节点由他人处理，只读。</p>
-          )
+          (() => {
+            const cur = nodes?.find((n) => n.status === 'current')
+            if (!cur) {
+              return <p className="hint">流程节点已全部完成。</p>
+            }
+            if (isMeActor(cur.actor) && todo.relation === 'mine_todo' && todo.state !== 'done') {
+              return <p className="hint">当前「{cur.label}」节点负责人是你，形成待办。</p>
+            }
+            return (
+              <p className="hint">
+                当前「{cur.label}」由「{cur.actor}」处理
+                {submitted ? '；本页为提交后现场回放，不可代办。' : '；只读跟踪，不可代办。'}
+              </p>
+            )
+          })()
         ) : (
           <p className="hint">未读取到完整历程时不渲染残缺流程图，表单仍可处理。</p>
         )}
