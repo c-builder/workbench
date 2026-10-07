@@ -17,7 +17,9 @@ import type {
   ChatMessage,
   Control,
   Domain,
+  ExecBy,
   FillMap,
+  FlowNode,
   LogEntry,
   Session,
   SessionStatus,
@@ -37,7 +39,27 @@ function normalizeUrl(raw: string) {
   const t = raw.trim()
   if (!t) return ''
   if (/^https?:\/\//i.test(t)) return t
+  // 已有其它协议前缀（如 htt:）视为非法，不自动补全
+  if (/^[a-z][a-z0-9+.-]*:/i.test(t)) return ''
   return `https://${t}`
+}
+
+/** 合法应用地址：http(s) + 有效主机名（含点，或 localhost） */
+function isValidAppUrl(raw: string) {
+  const url = normalizeUrl(raw)
+  if (!url) return false
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    const host = u.hostname
+    if (!host) return false
+    if (host === 'localhost') return true
+    if (!host.includes('.')) return false
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(host)) return false
+    return true
+  } catch {
+    return false
+  }
 }
 
 function isAppsHomeUrl(url: string) {
@@ -49,10 +71,21 @@ function isAppsHomeUrl(url: string) {
   }
 }
 
-function tabMetaFromUrl(url: string): { kind: BrowserTab['kind']; title: string } {
+function tabMetaFromUrl(
+  url: string,
+  apps: { id: string; name: string; url: string }[] = [],
+): { kind: BrowserTab['kind']; title: string } {
   if (isAppsHomeUrl(url)) return { kind: 'home', title: '应用中心' }
-  if (/w3\.internal/i.test(url) || /\/w3\b/i.test(url)) return { kind: 'w3', title: 'W3 审批' }
-  if (/ebuy\.internal/i.test(url) || /\/ebuy\b/i.test(url)) return { kind: 'ebuy', title: 'eBuy' }
+  const hit = apps.find(
+    (a) => url === a.url || url.startsWith(a.url.replace(/\/$/, '') + '/') || url.startsWith(a.url),
+  )
+  if (hit) {
+    if (hit.id === 'w3' || /w3/i.test(hit.url)) return { kind: 'w3', title: hit.name }
+    if (hit.id === 'ebuy' || /ebuy/i.test(hit.url)) return { kind: 'ebuy', title: hit.name }
+    return { kind: 'external', title: hit.name }
+  }
+  if (/w3\.internal/i.test(url)) return { kind: 'w3', title: 'W3 审批' }
+  if (/ebuy\.internal/i.test(url)) return { kind: 'ebuy', title: 'eBuy' }
   try {
     const host = new URL(url).hostname.replace(/^www\./, '')
     return { kind: 'external', title: host || '网页' }
@@ -62,7 +95,101 @@ function tabMetaFromUrl(url: string): { kind: BrowserTab['kind']; title: string 
 }
 
 function canOpenExternally(url: string) {
-  return /^https?:\/\//i.test(url)
+  return isValidAppUrl(url)
+}
+
+/** 应用中心不回填地址，引导用户主动输入 */
+function addrBarValueForTab(tab: BrowserTab) {
+  return tab.id === 'home' || tab.kind === 'home' ? '' : tab.url
+}
+
+function uid(p: string) {
+  return `${p}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function isMeActor(actor: string) {
+  return actor === '我' || actor === ME
+}
+
+function shortDate() {
+  const d = new Date()
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function flowBaseTitle(title: string) {
+  return title.split('·')[0].trim() || title
+}
+
+/** 提交后推进节点：归档当前待办；若下一节点非本人则生成「我的申请」跟踪项 */
+function advanceAfterSubmit(todo: Todo, execBy: ExecBy): { archived: Todo; followUp?: Todo; note: string } {
+  const nodes = todo.flow?.nodes
+  const archivedBase: Todo = { ...todo, state: 'done', execBy }
+  if (!nodes?.length) {
+    return { archived: archivedBase, note: '该待办已归档。' }
+  }
+
+  const curIdx = nodes.findIndex((n) => n.status === 'current')
+  const idx = curIdx >= 0 ? curIdx : nodes.findIndex((n) => n.status === 'todo')
+  if (idx < 0) {
+    return { archived: archivedBase, note: '该待办已归档。' }
+  }
+
+  const today = shortDate()
+  const advanced: FlowNode[] = nodes.map((n, i) => {
+    if (i === idx) return { ...n, status: 'done', date: n.date || today }
+    if (i === idx + 1) return { ...n, status: 'current' }
+    return { ...n }
+  })
+
+  const archived: Todo = {
+    ...archivedBase,
+    flow: todo.flow ? { ...todo.flow, nodes: advanced } : undefined,
+  }
+  const next = advanced[idx + 1]
+  if (!next) {
+    return { archived, note: `「${nodes[idx].label}」已完成，流程结束并归档。` }
+  }
+
+  const base = flowBaseTitle(todo.title)
+  if (isMeActor(next.actor)) {
+    const followUp: Todo = {
+      ...todo,
+      id: uid('t'),
+      title: `${base} · ${next.label}`,
+      subtitle: `流转至你 · ${next.label}`,
+      relation: 'mine_todo',
+      state: 'pending',
+      agent: true,
+      execBy: undefined,
+      flow: todo.flow ? { ...todo.flow, nodes: advanced } : undefined,
+    }
+    return {
+      archived,
+      followUp,
+      note: `「${nodes[idx].label}」已完成，下一节点「${next.label}」仍由你处理，已回到「我的待办」。`,
+    }
+  }
+
+  const followUp: Todo = {
+    id: uid('t'),
+    title: `${base} · ${next.label}`,
+    subtitle: `我发起 · 当前处理人：${next.actor}`,
+    domain: todo.domain,
+    pri: todo.pri,
+    due: '跟踪中',
+    agent: false,
+    relation: 'mine_initiated',
+    state: 'pending',
+    amount: todo.amount,
+    app: todo.app,
+    url: todo.url,
+    flow: todo.flow ? { ...todo.flow, nodes: advanced } : undefined,
+  }
+  return {
+    archived,
+    followUp,
+    note: `「${nodes[idx].label}」已完成，已流转至「${next.label}」（${next.actor}），已加入「我的申请」。`,
+  }
 }
 const MODELS = [
   { id: 'hy4', name: 'Hy4 preview', brand: 'hy', free: true, cost: '0.00x' },
@@ -124,10 +251,6 @@ function sessionLiveStatus(p: {
   if (p.control === 'agent' || p.typing) return 'running'
   if (p.control === 'paused' || (p.submitReady && !p.submitted) || p.batchReady) return 'confirm'
   return 'idle'
-}
-
-function uid(p: string) {
-  return `${p}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function welcome(): ChatMessage {
@@ -208,7 +331,7 @@ export default function App() {
     { id: 'home', title: '应用中心', url: APPS_HOME_URL, kind: 'home', controlDot: 'none' },
   ])
   const [activeTab, setActiveTab] = useState('home')
-  const [urlInput, setUrlInput] = useState(APPS_HOME_URL)
+  const [urlInput, setUrlInput] = useState('')
   const [customApps, setCustomApps] = useState<{ id: string; name: string; url: string; desc: string }[]>([])
   const [addAppOpen, setAddAppOpen] = useState(false)
   const [newAppName, setNewAppName] = useState('')
@@ -250,17 +373,13 @@ export default function App() {
   const mineRunning = mine.filter((t) => t.state === 'running')
   const mineAgentable = mine.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple')
   const initRunning = initiated.filter((t) => t.state === 'running')
-  const agentable = mineAll.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple').length
-  const scopedTodos =
-    flowRelation === 'initiated'
-      ? initLens === 'running'
-        ? initRunning
-        : initiated
-      : mineLens === 'agentable'
-        ? mineAgentable
-        : mineLens === 'running'
-          ? mineRunning
-          : mine
+  const agentableList = mineAll.filter((t) => t.agent && t.state === 'pending' && t.kind !== 'simple')
+  const agentable = agentableList.length
+  const doneCount = archived.filter((t) => domainFilter === 'all' || t.domain === domainFilter).length
+  const scopedMine =
+    mineLens === 'agentable' ? mineAgentable : mineLens === 'running' ? mineRunning : mine
+  const scopedInitiated = initLens === 'running' ? initRunning : initiated
+  const scopedTodos = flowRelation === 'initiated' ? scopedInitiated : scopedMine
   const shownLogs = logs.filter((l) => logApp === 'all' || l.app === logApp)
   const logApps = ['all', ...Array.from(new Set(logs.map((l) => l.app).filter((a): a is string => Boolean(a))))]
   const currentStatus = sessionLiveStatus({ control, typing, submitReady, submitted, batchReady })
@@ -400,6 +519,34 @@ export default function App() {
       setArchived((a) => [...move, ...a])
       return list.filter((t) => !ids.includes(t.id))
     })
+  }
+
+  /** 提交完成：归档 + 节点流转；他人节点进入「我的申请」 */
+  const completeTodosWithFlow = (ids: string[], execBy: ExecBy) => {
+    const notes: string[] = []
+    let addedInitiated = 0
+    let addedMine = 0
+    setTodos((list) => {
+      const done = list.filter((t) => ids.includes(t.id))
+      const rest = list.filter((t) => !ids.includes(t.id))
+      const archivedItems: Todo[] = []
+      const followUps: Todo[] = []
+      for (const t of done) {
+        const { archived, followUp, note } = advanceAfterSubmit(t, execBy)
+        archivedItems.push(archived)
+        notes.push(note)
+        if (followUp) {
+          followUps.push(followUp)
+          if (followUp.relation === 'mine_initiated') addedInitiated += 1
+          else addedMine += 1
+        }
+      }
+      setArchived((a) => [...archivedItems, ...a])
+      return [...followUps, ...rest]
+    })
+    if (addedInitiated) setFlowRelation('initiated')
+    else if (addedMine) setFlowRelation('mine')
+    return { notes, addedInitiated, addedMine }
   }
 
   const addArtifact = (a: Artifact) => {
@@ -613,16 +760,27 @@ export default function App() {
     setBatchConfirm(false)
     setSubmitted(true)
     if (batchReady) {
-      archiveTodos(ids, 'mix')
+      const { notes, addedInitiated } = completeTodosWithFlow(ids, 'mix')
       const remain = batchItems.filter((t) => !ids.includes(t.id))
       setBatchItems(remain)
       setBatchReady(remain.length > 0)
       setPicked([])
       setBatchChecked([])
-      say('agent', `已批量提交 ${ids.length} 条（差异项未提交）。待办已移入归档，执行方：Agent 代办 · 人工确认。${remain.length ? `仍留 ${remain.length} 条需你复核。` : ''}`)
+      say(
+        'agent',
+        [
+          `已批量提交 ${ids.length} 条（差异项未提交）。执行方：Agent 代办 · 人工确认。`,
+          ...notes,
+          addedInitiated ? `其中 ${addedInitiated} 条已进入「我的申请」跟踪。` : '',
+          remain.length ? `仍留 ${remain.length} 条需你复核。` : '',
+        ]
+          .filter(Boolean)
+          .join(''),
+      )
+      setPanel('flow')
     } else if (ids[0]) {
       const t = todos.find((x) => x.id === ids[0])
-      archiveTodos(ids, 'mix')
+      const { notes, addedInitiated } = completeTodosWithFlow(ids, 'mix')
       addArtifact({
         id: uid('f'),
         type: 'doc',
@@ -633,9 +791,13 @@ export default function App() {
         status: 'done',
         session: sessionList.find((s) => s.id === sessionId)?.title || '当前任务',
         pages: '1 页',
-        preview: `已提交。节点完成，下一处理人按历程流转。\n来源：${t?.title}`,
+        preview: `已提交。\n${notes.join('\n')}\n来源：${t?.title}`,
       })
-      say('agent', `「${t?.title}」已提交。该待办从你的列表移除并归档。若下一节点负责人不是你，将出现在「我的申请」跟踪里。可问我「刚刚核对出的差异有哪些」。`)
+      say(
+        'agent',
+        `「${t?.title}」已提交。${notes.join('')}${addedInitiated ? '可在流程活动里展开「我的申请」查看进度。' : ''}可问我「刚刚核对出的差异有哪些」。`,
+      )
+      setPanel('flow')
     }
     setTimeout(() => {
       setSessionControl('none')
@@ -892,9 +1054,24 @@ export default function App() {
     [artifacts, currentSessionTitle],
   )
   const filteredArtifacts = useMemo(
-    () => sessionArtifacts.filter((a) => artifactSource === 'all' || a.source === artifactSource),
-    [sessionArtifacts, artifactSource],
+    () => artifacts.filter((a) => artifactSource === 'all' || a.source === artifactSource),
+    [artifacts, artifactSource],
   )
+  const artifactsBySession = useMemo(() => {
+    const map = new Map<string, Artifact[]>()
+    for (const a of filteredArtifacts) {
+      const key = a.session || '未归类'
+      const list = map.get(key)
+      if (list) list.push(a)
+      else map.set(key, [a])
+    }
+    const keys = [...map.keys()].sort((a, b) => {
+      if (a === currentSessionTitle) return -1
+      if (b === currentSessionTitle) return 1
+      return a.localeCompare(b, 'zh')
+    })
+    return keys.map((session) => ({ session, items: map.get(session)! }))
+  }, [filteredArtifacts, currentSessionTitle])
   const file = filteredArtifacts.find((a) => a.id === fileId)
 
   useEffect(() => {
@@ -942,18 +1119,26 @@ export default function App() {
     pushLog({ actor: 'human', action: `${source}打开 ${a.name}`, level: 'info', reversible: true, app: a.url })
   }
 
+  /** 地址栏「前往」：始终在工作台内置浏览器打开 */
   const navigateAddress = (raw: string) => {
+    if (!isValidAppUrl(raw)) return
     const url = normalizeUrl(raw)
     if (!url) return
-    const { kind, title } = tabMetaFromUrl(url)
-    setUrlInput(url)
+    const { kind, title } = tabMetaFromUrl(url, allApps)
+    setPanel('app')
+    setMobilePane('bench')
 
     if (kind === 'home') {
       setActiveTab('home')
-      setTabs((ts) => ts.map((t) => (t.id === 'home' ? { ...t, url, kind: 'home', title: '应用中心' } : t)))
-      pushLog({ actor: 'human', action: '地址栏打开应用中心', level: 'info', reversible: true, app: url })
+      setTabs((ts) =>
+        ts.map((t) => (t.id === 'home' ? { ...t, url: APPS_HOME_URL, kind: 'home', title: '应用中心' } : t)),
+      )
+      setUrlInput('')
+      pushLog({ actor: 'human', action: '内置浏览器打开应用中心', level: 'info', reversible: true, app: APPS_HOME_URL })
       return
     }
+
+    setUrlInput(url)
 
     // 应用中心标签保留；从首页跳转时新开标签
     if (currentTab.id === 'home' || currentTab.kind === 'home') {
@@ -961,17 +1146,14 @@ export default function App() {
       setTabs((ts) => [...ts, tab])
       setActiveTab(tab.id)
       if (control === 'none' || control === 'human') setSessionControl('human', tab.id)
-      pushLog({ actor: 'human', action: `地址栏打开 ${title}`, level: 'info', reversible: true, app: url })
+      pushLog({ actor: 'human', action: `内置浏览器打开 ${title}`, level: 'info', reversible: true, app: url })
       return
     }
 
-    // 表单 / 批量 / HTML 预览页改址时切到目标浏览态
     setTabs((ts) =>
-      ts.map((t) =>
-        t.id === activeTab ? { ...t, url, kind, title, html: undefined } : t,
-      ),
+      ts.map((t) => (t.id === activeTab ? { ...t, url, kind, title, html: undefined } : t)),
     )
-    pushLog({ actor: 'human', action: `地址栏跳转 ${url}`, level: 'info', reversible: true, app: url })
+    pushLog({ actor: 'human', action: `内置浏览器跳转 ${title}`, level: 'info', reversible: true, app: url })
   }
 
   const openInExternalBrowser = (url = currentTab.url) => {
@@ -1010,10 +1192,16 @@ export default function App() {
     if (id !== 'mine') {
       setBatchMode(false)
       setPicked([])
-      setMineLens('all')
-    } else {
-      setInitLens('all')
     }
+  }
+
+  const runOneClickAdvance = () => {
+    setFlowRelation('mine')
+    setMineLens('agentable')
+    const list = agentableList
+    if (!list.length) return
+    if (list.length === 1) runSingleCollab(list[0])
+    else runBatch(list.map((t) => t.id))
   }
 
   return (
@@ -1488,7 +1676,7 @@ export default function App() {
               [
                 ['flow', '流程活动', mineAll.length],
                 ['app', '应用', tabs.length],
-                ['files', '产物与文件', sessionArtifacts.length],
+                ['files', '产物与文件', artifacts.length],
               ] as const
             ).map(([id, label, count]) => (
               <button
@@ -1582,58 +1770,12 @@ export default function App() {
                       <input
                         className="search flow-search"
                         placeholder={
-                          flowRelation === 'mine'
-                            ? '搜索待办名称或应用'
-                            : '搜索申请名称或应用'
+                          flowRelation === 'mine' ? '搜索待办名称或应用' : '搜索申请名称或应用'
                         }
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                       />
                       <div className="flow-filters">
-                        <div
-                          className="lens-segment"
-                          role="radiogroup"
-                          aria-label={flowRelation === 'mine' ? '待办视角' : '申请视角'}
-                        >
-                          {flowRelation === 'mine'
-                            ? (
-                                [
-                                  ['all', '全部', mine.length],
-                                  ['agentable', '可推进', mineAgentable.length],
-                                  ['running', '进行中', mineRunning.length],
-                                ] as const
-                              ).map(([id, label, n]) => (
-                                <button
-                                  key={id}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={mineLens === id}
-                                  className={mineLens === id ? 'on' : ''}
-                                  onClick={() => setMineLens(id)}
-                                >
-                                  {label}
-                                  <em>{n}</em>
-                                </button>
-                              ))
-                            : (
-                                [
-                                  ['all', '全部', initiated.length],
-                                  ['running', '处理中', initRunning.length],
-                                ] as const
-                              ).map(([id, label, n]) => (
-                                <button
-                                  key={id}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={initLens === id}
-                                  className={initLens === id ? 'on' : ''}
-                                  onClick={() => setInitLens(id)}
-                                >
-                                  {label}
-                                  <em>{n}</em>
-                                </button>
-                              ))}
-                        </div>
                         <label className="domain-select-wrap">
                           <span className="sr-only">业务分类</span>
                           <select
@@ -1650,6 +1792,68 @@ export default function App() {
                             ))}
                           </select>
                         </label>
+                        <div
+                          className="lens-segment"
+                          role="radiogroup"
+                          aria-label={flowRelation === 'mine' ? '待办视角' : '申请视角'}
+                        >
+                          {flowRelation === 'mine'
+                            ? (
+                                [
+                                  ['all', '全部', mine.length, true],
+                                  ['agentable', '可推进', mineAgentable.length, mineAgentable.length > 0],
+                                  ['running', '进行中', mineRunning.length, mineRunning.length > 0],
+                                  ['done', '已完成', doneCount, doneCount > 0],
+                                ] as const
+                              ).map(([id, label, n, enabled]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={id === 'done' ? false : mineLens === id}
+                                  className={`${mineLens === id && id !== 'done' ? 'on' : ''}${enabled ? '' : ' is-muted'}`}
+                                  disabled={!enabled && id !== 'all'}
+                                  title={!enabled && id !== 'all' ? `暂无${label}` : undefined}
+                                  onClick={() => {
+                                    if (id === 'done') {
+                                      if (doneCount) setArchiveView(true)
+                                      return
+                                    }
+                                    setMineLens(id)
+                                  }}
+                                >
+                                  {label}
+                                  <em>{n}</em>
+                                </button>
+                              ))
+                            : (
+                                [
+                                  ['all', '全部', initiated.length, true],
+                                  ['running', '处理中', initRunning.length, initRunning.length > 0],
+                                  ['done', '已完成', doneCount, doneCount > 0],
+                                ] as const
+                              ).map(([id, label, n, enabled]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={id === 'done' ? false : initLens === id}
+                                  className={`${initLens === id && id !== 'done' ? 'on' : ''}${enabled ? '' : ' is-muted'}`}
+                                  disabled={!enabled && id !== 'all'}
+                                  title={!enabled && id !== 'all' ? `暂无${label}` : undefined}
+                                  onClick={() => {
+                                    if (id === 'done') {
+                                      if (doneCount) setArchiveView(true)
+                                      return
+                                    }
+                                    setInitLens(id)
+                                  }}
+                                >
+                                  {label}
+                                  <em>{n}</em>
+                                </button>
+                              ))}
+                        </div>
                       </div>
                       <div className="flow-actions">
                         {flowRelation === 'mine' && (
@@ -1671,19 +1875,10 @@ export default function App() {
                               type="button"
                               className="flow-action-link"
                               disabled={!agentable}
-                              onClick={() => {
-                                setMineLens('agentable')
-                                const t = todos.find(
-                                  (x) =>
-                                    x.relation === 'mine_todo' &&
-                                    x.agent &&
-                                    x.state === 'pending' &&
-                                    x.kind !== 'simple',
-                                )
-                                if (t) runSingleCollab(t)
-                              }}
+                              title={agentable > 1 ? `推进全部 ${agentable} 条可代办` : '推进可代办事项'}
+                              onClick={runOneClickAdvance}
                             >
-                              一键推进
+                              一键推进{agentable > 1 ? `（${agentable}）` : ''}
                             </button>
                             <span className="flow-action-sep" aria-hidden>
                               ·
@@ -1705,7 +1900,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {!scopedTodos.length && (
+                  {!scopedTodos.length ? (
                     <div className="empty-scope">
                       {flowRelation === 'initiated'
                         ? initLens === 'running'
@@ -1717,42 +1912,45 @@ export default function App() {
                             ? '当前没有 Agent 可推进的待办。'
                             : '当前没有待办。'}
                     </div>
-                  )}
-                  {flowRelation === 'mine'
-                    ? DOMAINS.map((d) => {
-                        const rows = scopedTodos.filter((t) => t.domain === d)
-                        if (!rows.length) return null
-                        return (
-                          <div key={d}>
-                            <div className="domain-h">{d} · {rows.length}</div>
-                            {rows.map((t) => (
-                              <TodoCard
-                                key={t.id}
-                                t={t}
-                                batchMode={batchMode && t.kind !== 'simple'}
-                                checked={picked.includes(t.id)}
-                                onCheck={(on) => setPicked((p) => (on ? [...p, t.id] : p.filter((i) => i !== t.id)))}
-                                onOpen={() => setDetail(t)}
-                                onCollab={() => runSingleCollab(t)}
-                                onToggle={() => toggleSimple(t)}
-                              />
-                            ))}
+                  ) : flowRelation === 'mine' ? (
+                    DOMAINS.map((d) => {
+                      const rows = scopedTodos.filter((t) => t.domain === d)
+                      if (!rows.length) return null
+                      return (
+                        <div key={d}>
+                          <div className="domain-h">
+                            {d} · {rows.length}
                           </div>
-                        )
-                      })
-                    : scopedTodos.map((t) => (
-                        <TodoCard
-                          key={t.id}
-                          t={t}
-                          onOpen={() => setDetail(t)}
-                          onNudge={() =>
-                            say(
-                              'agent',
-                              `已生成催办提醒给「${t.flow?.nodes.find((n) => n.status === 'current')?.actor}」，不会代为处理该节点。`,
-                            )
-                          }
-                        />
-                      ))}
+                          {rows.map((t) => (
+                            <TodoCard
+                              key={t.id}
+                              t={t}
+                              batchMode={batchMode && t.kind !== 'simple'}
+                              checked={picked.includes(t.id)}
+                              onCheck={(on) => setPicked((p) => (on ? [...p, t.id] : p.filter((i) => i !== t.id)))}
+                              onOpen={() => setDetail(t)}
+                              onCollab={() => runSingleCollab(t)}
+                              onToggle={() => toggleSimple(t)}
+                            />
+                          ))}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    scopedTodos.map((t) => (
+                      <TodoCard
+                        key={t.id}
+                        t={t}
+                        onOpen={() => setDetail(t)}
+                        onNudge={() =>
+                          say(
+                            'agent',
+                            `已生成催办提醒给「${t.flow?.nodes.find((n) => n.status === 'current')?.actor}」，不会代为处理该节点。`,
+                          )
+                        }
+                      />
+                    ))
+                  )}
                 </>
               ) : (
                 <>
@@ -1802,7 +2000,7 @@ export default function App() {
                       style={{ padding: 0, border: 0, background: 'none', color: 'inherit' }}
                       onClick={() => {
                         setActiveTab(t.id)
-                        setUrlInput(t.url)
+                        setUrlInput(addrBarValueForTab(t))
                       }}
                     >
                       {t.id === controlTabId && (control === 'agent' || control === 'paused') && (
@@ -1821,7 +2019,7 @@ export default function App() {
                           setTabs(next)
                           if (activeTab === t.id) {
                             setActiveTab(next[0].id)
-                            setUrlInput(next[0].url)
+                            setUrlInput(addrBarValueForTab(next[0]))
                           }
                           if (controlTabId === t.id) {
                             if (control === 'agent' || control === 'paused') setSessionControl(control, next[0].id)
@@ -1840,35 +2038,46 @@ export default function App() {
                   className="addr-form"
                   onSubmit={(e) => {
                     e.preventDefault()
+                    if (!isValidAppUrl(urlInput)) return
                     navigateAddress(urlInput)
                   }}
                 >
                   <label className="sr-only" htmlFor="browser-addr">
-                    地址栏
+                    应用地址
                   </label>
                   <input
                     id="browser-addr"
-                    className="addr-input"
+                    className={`addr-input${urlInput.trim() && !isValidAppUrl(urlInput) ? ' invalid' : ''}`}
                     value={urlInput}
-                    placeholder="例如 https://w3.internal/todo"
+                    placeholder="请输入应用地址，例如 https://w3.internal/todo"
                     spellCheck={false}
+                    aria-invalid={Boolean(urlInput.trim() && !isValidAppUrl(urlInput))}
                     onChange={(e) => setUrlInput(e.target.value)}
-                    onFocus={(e) => e.target.select()}
+                    onFocus={(e) => {
+                      if (e.target.value) e.target.select()
+                    }}
                   />
-                  <button type="submit" className="btn addr-go" title="跳转">
+                  <button
+                    type="submit"
+                    className="btn primary addr-go"
+                    disabled={!isValidAppUrl(urlInput)}
+                    title={
+                      isValidAppUrl(urlInput) ? '在工作台内置浏览器中打开' : '请输入合法的 http(s) 应用地址'
+                    }
+                  >
                     前往
                   </button>
                 </form>
                 <button
                   type="button"
                   className="btn addr-ext"
-                  disabled={!canOpenExternally(currentTab.url)}
+                  disabled={!isValidAppUrl(urlInput)}
                   title={
-                    canOpenExternally(currentTab.url)
-                      ? '在系统默认浏览器中打开当前页'
-                      : '仅 http/https 地址可外开'
+                    isValidAppUrl(urlInput)
+                      ? '用系统默认浏览器打开（离开工作台）'
+                      : '请输入合法的 http(s) 应用地址'
                   }
-                  onClick={() => openInExternalBrowser(currentTab.url)}
+                  onClick={() => openInExternalBrowser(normalizeUrl(urlInput))}
                 >
                   在外部浏览器打开
                 </button>
@@ -1942,14 +2151,17 @@ export default function App() {
                 )}
                 {currentTab.kind === 'external' && (
                   <div className="placeholder">
-                    <h3>演示环境占位页</h3>
-                    <p>演示中不嵌入真实站点；已记录网址。可外开系统浏览器，或在对话里让 Agent 处理当前页。</p>
+                    <h3>已在内置浏览器打开</h3>
+                    <p>
+                      演示环境不嵌入真实内网站点，以占位页保留现场。需要时可改用系统浏览器，或在对话里让 Agent
+                      处理当前页。
+                    </p>
                     <p>
                       <code>{currentTab.url}</code>
                     </p>
                     {canOpenExternally(currentTab.url) && (
-                      <button type="button" className="btn primary" onClick={() => openInExternalBrowser(currentTab.url)}>
-                        在外部浏览器打开
+                      <button type="button" className="btn" onClick={() => openInExternalBrowser(currentTab.url)}>
+                        改用外部浏览器打开
                       </button>
                     )}
                   </div>
@@ -1973,30 +2185,30 @@ export default function App() {
                 <div className="file-filters">
                   {(
                     [
-                      ['all', '全部', '本任务下全部产物', sessionArtifacts.length],
+                      ['all', '全部', '全部会话下的产物', artifacts.length],
                       [
                         'agent',
                         'Agent 产物',
                         'Agent 在协同处理流程时自动生成的文件',
-                        sessionArtifacts.filter((a) => a.source === 'agent').length,
+                        artifacts.filter((a) => a.source === 'agent').length,
                       ],
                       [
                         'dialogue',
                         '对话产物',
                         '对话中生成或导出的文件',
-                        sessionArtifacts.filter((a) => a.source === 'dialogue').length,
+                        artifacts.filter((a) => a.source === 'dialogue').length,
                       ],
                       [
                         'flow',
                         '流程产物',
                         '流程节点完成后沉淀的业务文件',
-                        sessionArtifacts.filter((a) => a.source === 'flow').length,
+                        artifacts.filter((a) => a.source === 'flow').length,
                       ],
                       [
                         'local',
                         '我添加的',
                         '你手动上传或添加的本地文件',
-                        sessionArtifacts.filter((a) => a.source === 'local').length,
+                        artifacts.filter((a) => a.source === 'local').length,
                       ],
                     ] as const
                   ).map(([id, label, hint, n]) => (
@@ -2015,47 +2227,47 @@ export default function App() {
                 </div>
                 {!filteredArtifacts.length ? (
                   <div className="rail-empty" style={{ padding: '28px 8px' }}>
-                    <b>本任务暂无产物</b>
-                    <p>在此任务中协同处理、对话生成或流程完成后，文件会出现在这里。</p>
+                    <b>暂无产物</b>
+                    <p>协同处理、对话生成、流程完成或本地上传后，文件会按会话归档出现在这里。</p>
                   </div>
                 ) : (
-                  <div className="file-group">
-                    <div className="section-h">
-                      <span>产物列表</span>
-                    </div>
-                    {filteredArtifacts.map((a) => (
-                      <div
-                        key={a.id}
-                        className={`file-row ${previewOpen && file?.id === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}
-                      >
-                        <button type="button" className="file-item" onClick={() => openArtifactPreview(a.id)}>
-                          <b>
-                            <span className="file-type">{typeLabel(a.type)}</span>
-                            {a.name}
-                          </b>
-                          <span className="file-meta">
-                            <i className={`file-src ${a.source}`}>{sourceLabel(a.source)}</i>
-                            {a.status === 'generating' ? '生成中' : a.sub}
-                            {a.pages ? ` · ${a.pages}` : ''}
-                          </span>
-                        </button>
-                        {a.status !== 'generating' && (
-                          <div className="file-row-actions">
-                            <button
-                              type="button"
-                              className="file-act"
-                              onClick={() => openArtifactPreview(a.id)}
-                            >
-                              预览
-                            </button>
-                            <button type="button" className="file-act" onClick={() => downloadArtifact(a)}>
-                              下载
-                            </button>
-                          </div>
-                        )}
+                  artifactsBySession.map(({ session, items }) => (
+                    <div key={session} className="file-group">
+                      <div className="section-h section-h-inline">
+                        <span>{session}</span>
+                        <span className="section-count">{items.length}</span>
+                        {session === currentSessionTitle && <span className="session-tag">当前</span>}
                       </div>
-                    ))}
-                  </div>
+                      {items.map((a) => (
+                        <div
+                          key={a.id}
+                          className={`file-row ${previewOpen && file?.id === a.id ? 'active' : ''} ${a.status === 'generating' ? 'gen' : ''}`}
+                        >
+                          <button type="button" className="file-item" onClick={() => openArtifactPreview(a.id)}>
+                            <b>
+                              <span className="file-type">{typeLabel(a.type)}</span>
+                              {a.name}
+                            </b>
+                            <span className="file-meta">
+                              <i className={`file-src ${a.source}`}>{sourceLabel(a.source)}</i>
+                              {a.status === 'generating' ? '生成中' : a.sub}
+                              {a.pages ? ` · ${a.pages}` : ''}
+                            </span>
+                          </button>
+                          {a.status !== 'generating' && (
+                            <div className="file-row-actions">
+                              <button type="button" className="file-act" onClick={() => openArtifactPreview(a.id)}>
+                                预览
+                              </button>
+                              <button type="button" className="file-act" onClick={() => downloadArtifact(a)}>
+                                下载
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))
                 )}
               </div>
               <div
@@ -2446,6 +2658,23 @@ function ArtifactPreview({ artifact }: { artifact: Artifact }) {
           HTML 预览（只读）。需要交互可点「在应用中打开」。
         </div>
         <div className="preview-html-body" dangerouslySetInnerHTML={{ __html: artifact.preview }} />
+      </div>
+    )
+  }
+  if (artifact.type === 'img') {
+    const src = artifact.preview.startsWith('data:') || /^https?:\/\//i.test(artifact.preview)
+      ? artifact.preview
+      : undefined
+    return (
+      <div className="preview-paper preview-img">
+        {src ? (
+          <img src={src} alt={artifact.name} />
+        ) : (
+          <div className="preview-img-fallback">
+            <p>{artifact.name}</p>
+            <pre>{artifact.preview}</pre>
+          </div>
+        )}
       </div>
     )
   }

@@ -98,6 +98,27 @@ export function downloadArtifact(a: Artifact) {
       .join('')
     blob = new Blob([`<html><head><meta charset="utf-8"><title>${esc(a.name)}</title></head><body>${slides}</body></html>`], { type: 'text/html;charset=utf-8' })
     filename = `${stem(filename)}.html`
+  } else if (a.type === 'img' && (a.preview.startsWith('data:') || /^https?:\/\//i.test(a.preview))) {
+    if (a.preview.startsWith('data:')) {
+      const comma = a.preview.indexOf(',')
+      const meta = a.preview.slice(0, comma)
+      const payload = a.preview.slice(comma + 1)
+      const mime = /data:([^;,]+)/.exec(meta)?.[1] || 'image/png'
+      if (/;base64/i.test(meta)) {
+        const bin = atob(payload)
+        const bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+        blob = new Blob([bytes], { type: mime })
+      } else {
+        blob = new Blob([decodeURIComponent(payload)], { type: mime })
+      }
+      filename = filename.match(/\.(png|jpe?g|gif|webp|svg)$/i)
+        ? filename
+        : `${stem(filename)}.${mime.includes('svg') ? 'svg' : 'png'}`
+    } else {
+      window.open(a.preview, '_blank', 'noopener,noreferrer')
+      return
+    }
   } else {
     blob = new Blob([a.preview], { type: 'text/plain;charset=utf-8' })
     filename = `${stem(filename)}.txt`

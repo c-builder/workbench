@@ -315,6 +315,31 @@ export const initialArtifacts: Artifact[] = [
     pages: '6 页',
     preview: '封面：本周待办积压简报\nP2 报销积压 8 条\nP3 采购评审 2 条超期风险\nP4 建议批量处理路径',
   },
+  {
+    id: 'f5',
+    type: 'img',
+    name: '发票截图-李娜深圳.png',
+    sub: '今天 14:05 · 1280×720',
+    kind: 'img',
+    source: 'local',
+    status: 'done',
+    session: '积压差旅报销过一遍',
+    pages: '1280×720',
+    preview:
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">
+  <rect width="640" height="400" fill="#f7f4ee"/>
+  <rect x="48" y="36" width="544" height="328" rx="12" fill="#fff" stroke="#d8d2c6"/>
+  <text x="72" y="78" font-family="sans-serif" font-size="20" fill="#1a2e24" font-weight="700">电子发票（演示）</text>
+  <text x="72" y="112" font-family="sans-serif" font-size="13" fill="#6b7a72">销方：深圳云途商旅 · 购方：衡台科技</text>
+  <line x1="72" y1="132" x2="568" y2="132" stroke="#ebe4d6"/>
+  <text x="72" y="168" font-family="sans-serif" font-size="14" fill="#3d5348">项目：差旅 · 深圳客户拜访</text>
+  <text x="72" y="198" font-family="sans-serif" font-size="14" fill="#3d5348">金额：¥12,220.00（含税）</text>
+  <text x="72" y="228" font-family="sans-serif" font-size="14" fill="#3d5348">开票日期：2026-10-02</text>
+  <rect x="72" y="268" width="160" height="56" rx="8" fill="#e8f6ee"/>
+  <text x="92" y="302" font-family="sans-serif" font-size="13" fill="#1f6b4a">OCR 已识别</text>
+</svg>`),
+  },
 ]
 
 export const appShortcuts = [
