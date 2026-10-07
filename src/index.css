@@ -677,9 +677,9 @@ button { cursor: pointer; }
 /* Flow panel */
 .flow-panel { flex: 1; overflow: auto; padding: 14px 16px 24px; }
 .flow-console {
-  position: sticky; top: -14px; z-index: 4;
+  position: sticky; top: 0; z-index: 4;
   background: var(--surface);
-  margin: -14px -4px 14px;
+  margin: 0 0 14px;
   padding: 12px;
   box-shadow: 0 10px 20px -14px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--line);
@@ -1327,7 +1327,7 @@ input.val {
 
   .flow-panel { padding: 12px; }
   .flow-console {
-    top: -12px; margin: -12px -4px 12px; padding: 10px;
+    top: 0; margin: 0 0 12px; padding: 10px;
   }
   .section-h, .card.running, .card[data-agentable='1'] { scroll-margin-top: 110px; }
   .row-actions { gap: 6px; }
@@ -1439,7 +1439,7 @@ input.val {
 
   .flow-panel { padding: 12px; }
   .flow-console {
-    top: -12px; margin: -12px -4px 12px; padding: 10px;
+    top: 0; margin: 0 0 12px; padding: 10px;
   }
   .section-h, .card.running, .card[data-agentable='1'] { scroll-margin-top: 120px; }
   .row-actions { gap: 6px; }
