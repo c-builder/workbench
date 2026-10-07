@@ -1061,10 +1061,6 @@ export default function App() {
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0]
   const currentSessionTitle = sessionList.find((s) => s.id === sessionId)?.title || '当前任务'
-  const sessionArtifacts = useMemo(
-    () => artifacts.filter((a) => a.session === currentSessionTitle),
-    [artifacts, currentSessionTitle],
-  )
   const filteredArtifacts = useMemo(
     () => artifacts.filter((a) => artifactSource === 'all' || a.source === artifactSource),
     [artifacts, artifactSource],
@@ -1819,10 +1815,10 @@ export default function App() {
                               role="radio"
                               aria-checked={mineLens === id}
                               className={`${mineLens === id ? 'on' : ''}${enabled ? '' : ' is-muted'}`}
-                              disabled={!enabled && id !== 'all'}
-                              title={!enabled && id !== 'all' ? `暂无${label}` : undefined}
+                              disabled={!enabled}
+                              title={enabled ? undefined : `暂无${label}`}
                               onClick={() => {
-                                if (!enabled && id !== 'all') return
+                                if (!enabled) return
                                 setMineLens(id)
                                 if (id === 'done') setBatchMode(false)
                               }}
@@ -1844,10 +1840,10 @@ export default function App() {
                               role="radio"
                               aria-checked={initLens === id}
                               className={`${initLens === id ? 'on' : ''}${enabled ? '' : ' is-muted'}`}
-                              disabled={!enabled && id !== 'all'}
-                              title={!enabled && id !== 'all' ? `暂无${label}` : undefined}
+                              disabled={!enabled}
+                              title={enabled ? undefined : `暂无${label}`}
                               onClick={() => {
-                                if (!enabled && id !== 'all') return
+                                if (!enabled) return
                                 setInitLens(id)
                               }}
                             >
