@@ -1852,17 +1852,39 @@ export default function App() {
                 <div className="file-filters">
                   {(
                     [
-                      ['all', '全部', sessionArtifacts.length],
-                      ['agent', 'Agent 产物', sessionArtifacts.filter((a) => a.source === 'agent').length],
-                      ['dialogue', '对话产物', sessionArtifacts.filter((a) => a.source === 'dialogue').length],
-                      ['flow', '流程产物', sessionArtifacts.filter((a) => a.source === 'flow').length],
-                      ['local', '我添加的', sessionArtifacts.filter((a) => a.source === 'local').length],
+                      ['all', '全部', '本任务下全部产物', sessionArtifacts.length],
+                      [
+                        'agent',
+                        'Agent 产物',
+                        'Agent 在协同处理流程时自动生成的文件',
+                        sessionArtifacts.filter((a) => a.source === 'agent').length,
+                      ],
+                      [
+                        'dialogue',
+                        '对话产物',
+                        '对话中生成或导出的文件',
+                        sessionArtifacts.filter((a) => a.source === 'dialogue').length,
+                      ],
+                      [
+                        'flow',
+                        '流程产物',
+                        '流程节点完成后沉淀的业务文件',
+                        sessionArtifacts.filter((a) => a.source === 'flow').length,
+                      ],
+                      [
+                        'local',
+                        '我添加的',
+                        '你手动上传或添加的本地文件',
+                        sessionArtifacts.filter((a) => a.source === 'local').length,
+                      ],
                     ] as const
-                  ).map(([id, label, n]) => (
+                  ).map(([id, label, hint, n]) => (
                     <button
                       key={id}
                       type="button"
                       className={`btn ${artifactSource === id ? 'primary' : ''}`}
+                      title={hint}
+                      aria-label={`${label}：${hint}`}
                       onClick={() => setArtifactSource(id)}
                     >
                       {label}
