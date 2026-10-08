@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Git 完整入门与实战手册</title>
+  <style>:root {
+  --bg: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --accent: #0369a1;
+  --accent-dim: #0284c7;
+  --border: #e2e8f0;
+  --code-bg: #f1f5f9;
+  --code-text: #0f172a;
+  --table-stripe: #f1f5f9;
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --sidebar-w: 260px;
+  --content-w: 1100px;
+  --font: "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --mono: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--text);
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(14, 165, 233, 0.08), transparent),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 40%, #f1f5f9 100%);
+}
+a { color: var(--accent-dim); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent); text-decoration: underline; }
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: var(--sidebar-w);
+  padding: 1.5rem 1rem 2rem;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  z-index: 100;
+}
+.sidebar-brand {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+.sidebar-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 1.25rem;
+  color: var(--text);
+}
+.sidebar nav { display: flex; flex-direction: column; gap: 0.15rem; }
+.sidebar nav a {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+}
+.sidebar nav a:hover {
+  color: var(--accent);
+  background: #e0f2fe;
+  text-decoration: none;
+  border-left-color: var(--accent-dim);
+}
+.main-wrap {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  min-width: 0;
+}
+.doc-column {
+  width: 100%;
+  max-width: var(--content-w);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  box-sizing: border-box;
+}
+.hero {
+  padding: 2.5rem 0 2rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 55%, #e0f2fe 100%);
+}
+.hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0c4a6e;
+  letter-spacing: -0.02em;
+}
+.hero p { margin: 0; color: var(--text-muted); font-size: 1.05rem; max-width: none; }
+.content {
+  max-width: none;
+  padding: 2rem 0 4rem;
+}
+.content > h1:first-of-type { display: none; }
+.content h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  font-size: 1.45rem;
+  border-bottom: 2px solid #bae6fd;
+  color: #0f172a;
+}
+.content h3 {
+  margin-top: 1.75rem;
+  font-size: 1.15rem;
+  color: #334155;
+}
+.content p { margin: 1em 0; color: #475569; }
+.content strong { color: #0f172a; }
+.content hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 2rem 0;
+}
+.content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.92rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.content th, .content td {
+  padding: 0.65rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.content th {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 600;
+}
+.content tr:nth-child(even) td { background: var(--table-stripe); }
+.content tr:last-child td { border-bottom: none; }
+.content ol, .content ul { padding-left: 1.35rem; color: #475569; }
+.content li { margin: 0.35rem 0; }
+.content code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: #e0f2fe;
+  color: #0c4a6e;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  border: 1px solid #bae6fd;
+}
+.content pre {
+  margin: 1.25rem 0;
+  padding: 1rem 1.15rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+}
+.content pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  color: var(--code-text);
+  font-size: 0.85rem;
+  line-height: 1.65;
+}
+.content pre code > span {
+  display: block;
+  position: relative;
+  margin: 0;
+  line-height: 1.45;
+}
+/* pandoc 行首锚点单独占行会导致「注释与命令之间空一行」，故隐藏 */
+.content pre code > span > a[href^="#"] {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+/* markdown 中的空行：仅含锚点、无代码内容 */
+.content pre code > span:has(> a:only-child) {
+  height: 0.85em;
+  line-height: 0;
+  overflow: hidden;
+}
+.content pre code .co,
+.content pre .co {
+  color: #64748b;
+  font-style: normal;
+}
+.git-svg-wrap {
+  margin: 1.25rem 0;
+  padding: 0.65rem 0.5rem 0.4rem;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: visible;
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.git-svg-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.git-cli-ref {
+  margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.content .git-cli-ref p {
+  margin: 0;
+}
+.git-cli-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.git-cli-section-title {
+  margin: 0;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0369a1;
+  background: linear-gradient(180deg, #e8f6fc 0%, #e0f2fe 100%);
+  border-bottom: 1px solid #bae6fd;
+}
+.git-cli-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+}
+.git-cli-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid #eef2f6;
+}
+.git-cli-item:last-child { border-bottom: none; }
+.git-cli-desc {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #475569;
+  font-weight: 500;
+}
+.git-cli-cmd {
+  margin: 0;
+  min-width: 0;
+}
+.git-cli-cmd .git-cli-tag {
+  display: inline-block;
+  margin: 0 0 0.35rem;
+  vertical-align: middle;
+}
+.git-cli-cmd code,
+.content .git-cli-cmd code {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #0f172a;
+  word-break: break-word;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.git-cli-legacy {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.git-cli-legacy code {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 0.4rem 0.65rem;
+  background: #fafafa;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  color: #64748b;
+}
+.git-cli-tag {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.12rem 0.5rem;
+  border-radius: 4px;
+  line-height: 1.45;
+}
+.git-cli-tag-new {
+  background: #d1fae5;
+  color: #065f46;
+}
+.git-cli-tag-old {
+  background: #fef3c7;
+  color: #92400e;
+}
+.back-top {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--accent);
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  opacity: 0.9;
+}
+.back-top:hover { background: var(--bg-card); opacity: 1; }
+footer.doc-footer {
+  margin-left: var(--sidebar-w);
+  padding: 1rem 0 2rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+footer.doc-footer .doc-column {
+  padding-top: 0;
+}
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main-wrap, footer.doc-footer { margin-left: 0; }
+  .doc-column { padding-left: 1.25rem; padding-right: 1.25rem; }
+}
+@media print {
+  .sidebar, .back-top { display: none !important; }
+  .main-wrap, footer.doc-footer { margin-left: 0; }
+  body { background: white; color: #111; }
+  .content p, .content li { color: #333; }
+}
+.content blockquote {
+  margin: 1rem 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--accent-dim);
+  background: #f0f9ff;
+  color: #475569;
+  font-size: 0.95rem;
+}
+.content blockquote p { margin: 0; }
+.git-branch-diagram { margin-top: 0.75rem; }
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="sidebar-brand">Git Guide</div>
+  <p class="sidebar-title">完整入门与实战手册</p>
+  <nav>
+    <a href="#1-git-是什么">1. Git 是什么</a>
+    <a href="#11-关系示意图">1.1 关系图</a>
+    <a href="#2-核心概念">2. 核心概念</a>
+    <a href="#3-本地基本流程">3. 本地流程</a>
+    <a href="#4-远端与同步fetch--pull--push">4. Fetch / Pull / Push</a>
+    <a href="#5-分支与合并">5. 分支与合并</a>
+    <a href="#6-pull-requestpr工作流">6. PR 工作流</a>
+    <a href="#7-常见协作模型">7. 协作模型</a>
+    <a href="#8-tortoisegit-速查">8. TortoiseGit</a>
+    <a href="#9-命令行速查">9. 命令行</a>
+    <a href="#91-新写法与旧写法按-git-版本">9.1 新/旧写法</a>
+    <a href="#92-常用命令">9.2 常用命令</a>
+    <a href="#10-冲突与回退">10. 冲突与回退</a>
+    <a href="#11-与-cursor-cloud-automations-的关系">11. Cursor 自动化</a>
+    <a href="#12-最佳实践与避坑">12. 最佳实践</a>
+    <a href="#13-术语表">13. 术语表</a>
+    <a href="#附录一张图串起来">附录</a>
+  </nav>
+</aside>
+  <div class="main-wrap">
+    <div class="doc-column">
+      <header class="hero">
+        <h1>Git 完整入门与实战手册</h1>
+        <p>面向日常开发、团队协作，以及 TortoiseGit / Cursor 云端自动化场景。示例分支：<code>develop</code>（集成）、<code>feature/iot-20260815</code>（功能）。</p>
+      </header>
+      <article class="content">
+<h1 id="git-完整入门与实战手册">Git 完整入门与实战手册</h1>
+<p>面向日常开发、团队协作，以及 TortoiseGit / Cursor
+云端自动化场景。</p>
+<p><strong>本文示例分支（下文命令与流程均以此为准）：</strong></p>
+<table>
+<thead>
+<tr>
+<th>分支名</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>develop</code></td>
+<td>集成分支：日常从该分支拉最新代码，功能完成后合并回该分支</td>
+</tr>
+<tr>
+<td><code>feature/iot-20260815</code></td>
+<td>功能分支示例：在 <code>develop</code> 上拉出，开发 IoT
+相关需求（名称中的日期仅为示例）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-git-是什么">1. Git 是什么</h2>
+<p><strong>Git</strong>
+是分布式版本控制系统：记录项目每次变更、支持多人并行开发、可回退到任意历史版本。</p>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本地仓库</td>
+<td>你电脑上的完整历史（<code>.git</code> 目录）</td>
+</tr>
+<tr>
+<td>远端仓库</td>
+<td>GitHub / GitLab / Gitee / 公司 Git 服务器上的副本</td>
+</tr>
+<tr>
+<td>工作区</td>
+<td>你正在编辑的文件</td>
+</tr>
+<tr>
+<td>暂存区</td>
+<td><code>git add</code> 之后、等待提交的区域</td>
+</tr>
+<tr>
+<td>版本库</td>
+<td><code>git commit</code> 之后永久保存的提交记录（在本地仓库
+<code>.git</code> 里）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-关系示意图">1.1 关系示意图</h3>
+<div class="git-svg-wrap">
+<svg viewBox="0 0 1100 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Git 工作区、暂存区、版本库与远端仓库关系图">
+  <defs>
+    <marker id="git-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 Z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <rect x="8" y="18" width="700" height="274" rx="12" fill="#fbf6d8" stroke="#c9b45c" stroke-width="1.5"/>
+  <rect x="328" y="8" width="56" height="20" fill="#fbf6d8"/>
+  <text x="356" y="23" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="700" fill="#1e293b">本机</text>
+
+  <rect x="24" y="46" width="176" height="214" rx="8" fill="#fffdf5" stroke="#c9b45c" stroke-width="1.5"/>
+  <text x="112" y="72" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="700" fill="#1e293b">工作区</text>
+  <rect x="40" y="92" width="144" height="124" rx="6" fill="#e7e1fa" stroke="#6a59b0" stroke-width="1.5"/>
+  <text x="112" y="160" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="700" fill="#1e1b4b">你正在编辑的文件</text>
+
+  <text x="491" y="106" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="700" fill="#1e293b">本地仓库（.git 目录）</text>
+  <rect x="286" y="124" width="140" height="52" rx="6" fill="#e7e1fa" stroke="#6a59b0" stroke-width="1.5"/>
+  <text x="356" y="155" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="700" fill="#1e1b4b">暂存区 Index</text>
+  <rect x="512" y="116" width="184" height="56" rx="6" fill="#e7e1fa" stroke="#6a59b0" stroke-width="1.5"/>
+  <text x="604" y="149" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" font-weight="700" fill="#1e1b4b">版本库：历次 commit 记录</text>
+
+  <rect x="920" y="46" width="168" height="214" rx="8" fill="#fffdf5" stroke="#c9b45c" stroke-width="1.5"/>
+  <text x="1004" y="76" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="700" fill="#1e293b">远端仓库</text>
+  <text x="1004" y="94" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#1e293b">（GitHub / GitLab ...）</text>
+  <rect x="936" y="118" width="136" height="52" rx="6" fill="#e7e1fa" stroke="#6a59b0" stroke-width="1.5"/>
+  <text x="1004" y="149" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="700" fill="#1e1b4b">提交历史与分支</text>
+
+  <path d="M 184 150 H 286" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#git-arrow)"/>
+  <text x="235" y="140" text-anchor="middle" font-family="Consolas, Microsoft YaHei, sans-serif" font-size="12" fill="#0369a1">git add</text>
+
+  <path d="M 426 150 H 512" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#git-arrow)"/>
+  <text x="469" y="140" text-anchor="middle" font-family="Consolas, Microsoft YaHei, sans-serif" font-size="12" fill="#0369a1">git commit</text>
+
+  <path d="M 696 132 H 920" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#git-arrow)"/>
+  <path d="M 920 154 H 696" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#git-arrow)"/>
+  <text x="808" y="114" text-anchor="middle" font-family="Consolas, Microsoft YaHei, sans-serif" font-size="12" fill="#0369a1">git push / git pull</text>
+
+  <path d="M 604 172 V 208 H 184" fill="none" stroke="#334155" stroke-width="1.5" marker-end="url(#git-arrow)"/>
+  <text x="390" y="228" text-anchor="middle" font-family="Consolas, Microsoft YaHei, sans-serif" font-size="12" fill="#0369a1">切换分支或 pull 合并后</text>
+
+  <path d="M 920 168 H 696" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#git-arrow)"/>
+  <rect x="708" y="192" width="200" height="44" rx="4" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="808" y="210" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#334155">git fetch（只更新远端跟踪</text>
+  <text x="808" y="226" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11" fill="#334155">信息，不自动改工作区）</text>
+</svg>
+</div>
+<p>结合上表，记住三点即可：</p>
+<ol type="1">
+<li><strong>工作区</strong>是你直接编辑的文件；<code>git add</code> →
+<strong>暂存区</strong> → <code>git commit</code> →
+<strong>版本库</strong>。暂存区与版本库都在 <code>.git</code>
+里，合起来就是<strong>本地仓库</strong>。</li>
+<li><strong>远端仓库</strong>在服务器上，用 <code>push</code> /
+<code>pull</code> / <code>fetch</code> 与本地版本库同步。</li>
+<li>具体命令按场景查 <a href="#92-常用命令">9.2 常用命令</a>。</li>
+</ol>
+<hr />
+<h2 id="2-核心概念">2. 核心概念</h2>
+<h3 id="21-提交commit">2.1 提交（Commit）</h3>
+<p><strong>提交</strong>就是把当前暂存区里的改动<strong>正式记入版本历史</strong>，生成一条带编号的记录（commit）。每条记录里通常包含：改了哪些文件、作者、时间、以及一段文字说明（commit
+message）。</p>
+<p>可以把一次提交想成「给项目当前状态拍一张存档照片」——以后可以回到这一刻查看或恢复。说明里宜写清<strong>做了什么、为什么</strong>；一次提交尽量只解决一件事。</p>
+<h3 id="22-分支branch">2.2 分支（Branch）</h3>
+<p>从某次提交分出的独立开发线。本文用 <code>develop</code>
+作集成分支；实际项目也可能是 <code>main</code> / <code>master</code>
+等，以团队规范为准。</p>
+<p><strong>读图：</strong> 圆角框 <strong>A～F</strong> 表示六次
+<strong>提交（commit）</strong>
+的代号，仅用于示意。箭头方向为时间推进（<strong>从左到右越新</strong>）。</p>
+
+<div class="git-svg-wrap git-branch-diagram">
+<svg viewBox="0 0 740 248" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="develop 与 feature 分支提交关系图">
+  <defs>
+    <marker id="branch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <text x="370" y="20" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#64748b">从左到右：时间变新 →</text>
+
+  <rect x="10" y="34" width="720" height="86" rx="8" fill="#f0f9ff" stroke="#7dd3fc"/>
+  <text x="26" y="56" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="600" fill="#0369a1">develop 集成分支</text>
+
+  <rect x="10" y="130" width="720" height="86" rx="8" fill="#faf5ff" stroke="#c4b5fd"/>
+  <text x="26" y="152" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" font-weight="600" fill="#5b21b6">feature/iot-20260815 功能分支</text>
+
+  <rect x="64" y="62" width="72" height="40" rx="8" fill="#e7e1fa" stroke="#6a59b0"/>
+  <text x="100" y="87" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="13" font-weight="600" fill="#1e1b4b">提交 A</text>
+  <rect x="184" y="62" width="72" height="40" rx="8" fill="#e7e1fa" stroke="#6a59b0"/>
+  <text x="220" y="87" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="13" font-weight="600" fill="#1e1b4b">提交 B</text>
+  <rect x="304" y="62" width="72" height="40" rx="8" fill="#e7e1fa" stroke="#6a59b0"/>
+  <text x="340" y="87" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="13" font-weight="600" fill="#1e1b4b">提交 C</text>
+  <rect x="524" y="62" width="72" height="40" rx="8" fill="#d1fae5" stroke="#059669"/>
+  <text x="560" y="87" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="13" font-weight="600" fill="#065f46">提交 F</text>
+
+  <rect x="184" y="158" width="72" height="40" rx="8" fill="#e7e1fa" stroke="#6a59b0"/>
+  <text x="220" y="183" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="13" font-weight="600" fill="#1e1b4b">提交 D</text>
+  <rect x="304" y="158" width="72" height="40" rx="8" fill="#e7e1fa" stroke="#6a59b0"/>
+  <text x="340" y="183" text-anchor="middle" font-family="Microsoft YaHei, sans-serif" font-size="13" font-weight="600" fill="#1e1b4b">提交 E</text>
+
+  <path d="M 136 82 H 184" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#branch-arrow)"/>
+  <path d="M 256 82 H 304" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#branch-arrow)"/>
+  <path d="M 376 82 H 524" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#branch-arrow)"/>
+  <path d="M 220 102 V 158" fill="none" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#branch-arrow)"/>
+  <text x="248" y="132" font-family="Microsoft YaHei, sans-serif" font-size="11" fill="#7c3aed">新建分支</text>
+  <path d="M 256 178 H 304" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#branch-arrow)"/>
+  <path d="M 376 178 Q 470 178 524 102" fill="none" stroke="#059669" stroke-width="1.5" marker-end="url(#branch-arrow)"/>
+  <text x="448" y="168" font-family="Microsoft YaHei, sans-serif" font-size="11" fill="#059669">merge 合并</text>
+</svg>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>代号</th>
+<th>含义（结合上图）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A、B、C</td>
+<td><code>develop</code> 上较早的提交</td>
+</tr>
+<tr>
+<td>B → D</td>
+<td>从 <strong>B</strong>
+拉出功能分支（<code>git switch -c feature/iot-20260815</code>）</td>
+</tr>
+<tr>
+<td>D、E</td>
+<td>在功能分支上的新提交</td>
+</tr>
+<tr>
+<td>E → F</td>
+<td>合并回 <code>develop</code> 后，<strong>F</strong>
+代表合并完成后的进展（D、E 的改动已进入 <code>develop</code>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-远端与跟踪">2.3 远端与跟踪</h3>
+<ul>
+<li><strong>Remote</strong>：本地给远端起的别名，默认多为
+<code>origin</code>。</li>
+<li><strong><code>origin/develop</code></strong>：远端
+<code>develop</code> 在本地的跟踪引用（Fetch 后更新）。</li>
+<li><strong>本地
+<code>develop</code></strong>：你<strong>当前正在使用</strong>的分支，可与
+<code>origin/develop</code> 一致、领先或落后。</li>
+<li><strong>跟踪分支</strong>：本地分支可跟踪远端分支（如
+<code>develop</code> 跟踪 <code>origin/develop</code>），Pull/Push
+时知道与谁同步。</li>
+</ul>
+<hr />
+<h2 id="3-本地基本流程">3. 本地基本流程</h2>
+<pre><code>修改文件 → add（暂存）→ commit（提交）→ push（推送到远端，可选）</code></pre>
+<p><strong>Commit 只写在本地</strong>；别人要看到你的改动，需要
+<strong>Push</strong>。<code>status</code> / <code>add</code> /
+<code>commit</code> / <code>pull</code> / <code>push</code> 见 <a
+href="#92-常用命令">9.2「日常」</a>。</p>
+<hr />
+<h2 id="4-远端与同步fetch--pull--push">4. 远端与同步：Fetch / Pull /
+Push</h2>
+<h3 id="41-三者对比对应-tortoisegit-菜单">4.1 三者对比（对应 TortoiseGit
+菜单）</h3>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>英文</th>
+<th>做了什么</th>
+<th>会不会改你当前分支上的文件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>获取</strong></td>
+<td>Fetch</td>
+<td>下载远端最新提交到本地引用（如 <code>origin/develop</code>）</td>
+<td><strong>一般不会</strong>自动改工作区</td>
+</tr>
+<tr>
+<td><strong>拉取</strong></td>
+<td>Pull</td>
+<td>Fetch + 合并（或 Rebase）到<strong>当前分支</strong></td>
+<td><strong>会</strong>，把远端变更合进来</td>
+</tr>
+<tr>
+<td><strong>推送</strong></td>
+<td>Push</td>
+<td>把本地已提交的历史上传到远端</td>
+<td>改的是<strong>远端</strong>，不是本地文件内容</td>
+</tr>
+</tbody>
+</table>
+<p>记忆：<strong>Fetch</strong> =
+只看远端更新了什么；<strong>Pull</strong> =
+接到当前分支；<strong>Push</strong> = 上传本地提交。</p>
+<h3 id="42-sync同步">4.2 Sync（同步）</h3>
+<p>在 TortoiseGit / 部分客户端里，常表示 <strong>Pull + Push</strong>
+组合。具体以工具提示为准。</p>
+<h3 id="43-推荐习惯">4.3 推荐习惯</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>开始干活前</td>
+<td>Pull</td>
+</tr>
+<tr>
+<td>功能做完</td>
+<td>Commit → Push</td>
+</tr>
+<tr>
+<td>不确定远端有什么</td>
+<td>先 Fetch，在日志里对比再决定是否合并</td>
+</tr>
+<tr>
+<td>有未提交修改又要 Pull</td>
+<td>先 Commit 或 Stash，再 Pull</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-clone">4.4 Clone</h3>
+<p>首次把远端仓库完整复制到本机（含历史）。之后在同一目录用 Pull/Push
+即可。命令与按分支克隆见 <a href="#92-常用命令">9.2「克隆」</a>。</p>
+<hr />
+<h2 id="5-分支与合并">5. 分支与合并</h2>
+<h3 id="51-为什么要分支">5.1 为什么要分支</h3>
+<p>集成分支（如 <code>develop</code>）保持稳定；功能在独立分支（如
+<code>feature/iot-20260815</code>）开发，完成后再合并。</p>
+<h3 id="52-常用操作去哪查">5.2 常用操作去哪查</h3>
+<table>
+<thead>
+<tr>
+<th>你想做的事</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>查看分支</td>
+<td><a href="#92-常用命令">9.2「查看」</a>；<code>git branch</code> /
+<code>git branch -a</code></td>
+</tr>
+<tr>
+<td>新建功能分支、切换、合并</td>
+<td><a href="#92-常用命令">9.2「分支」</a>；<code>switch</code> /
+<code>checkout</code> 新旧写法见 <a
+href="#91-新写法与旧写法按-git-版本">9.1</a></td>
+</tr>
+<tr>
+<td>变基（可选，高级）</td>
+<td>在功能分支上 <code>git rebase develop</code>
+可使历史更线性；<strong>勿</strong>对已推送且他人共用的分支随意
+rebase</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-merge-vs-rebase简版">5.3 Merge vs Rebase（简版）</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Merge</th>
+<th>Rebase</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>结果</td>
+<td>多一个合并提交，历史分叉可见</td>
+<td>历史更呈一条线</td>
+</tr>
+<tr>
+<td>风险</td>
+<td>较低，适合共享分支</td>
+<td>可能改写已发布历史，需团队同意</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-pull-requestpr工作流">6. Pull Request（PR）工作流</h2>
+<p><strong>PR</strong>（GitLab 上常叫 <strong>MR</strong>）=
+请求把某分支的改动<strong>合并进目标分支</strong>（本文为
+<code>develop</code>），并附带说明与审查。</p>
+<h3 id="61-典型流程">6.1 典型流程</h3>
+<pre><code>1. 在 develop 上 Pull 最新 → 建分支 feature/iot-20260815
+2. 本地开发 → commit（可多次）
+3. push feature/iot-20260815 到远端
+4. 网页创建 PR（feature/iot-20260815 → develop）
+5. Review、CI
+6. 合并 PR
+7. 其他人本地 develop Pull，拿到结果</code></pre>
+<h3 id="62-pr-里有什么">6.2 PR 里有什么</h3>
+<p>文件 diff、描述与 Issue、评论与审批、CI 结果。</p>
+<h3 id="63-直接-push-develop-还是走-pr">6.3 直接 Push develop 还是走
+PR</h3>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>适用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>直接 Push develop</td>
+<td>个人项目或团队允许</td>
+</tr>
+<tr>
+<td>PR 再合并</td>
+<td>团队项目、需要审查（推荐）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-常见协作模型">7. 常见协作模型</h2>
+<h3 id="71-功能分支推荐">7.1 功能分支（推荐）</h3>
+<p>每人或每需求一条分支，合并走 PR。本文示例即 <code>develop</code> +
+<code>feature/*</code>。</p>
+<h3 id="72-其他模型了解即可">7.2 其他模型（了解即可）</h3>
+<ul>
+<li><strong>Git Flow</strong>：除 develop 外还有 <code>main</code>
+发布线、<code>release/*</code>、<code>hotfix/*</code> 等。</li>
+<li><strong>Fork</strong>：开源贡献时 Fork 到自己仓库，改完后 PR
+回原仓库。</li>
+</ul>
+<hr />
+<h2 id="8-tortoisegit-速查">8. TortoiseGit 速查</h2>
+<p>在资源管理器右键 <strong>TortoiseGit</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>菜单项</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clone</td>
+<td>首次克隆远端仓库</td>
+</tr>
+<tr>
+<td>Pull / Fetch / Push</td>
+<td>拉取、仅获取、推送（含义见 §4.1）</td>
+</tr>
+<tr>
+<td>Commit</td>
+<td>提交</td>
+</tr>
+<tr>
+<td>Show log</td>
+<td>历史与分支</td>
+</tr>
+<tr>
+<td>Create branch / Switch/Checkout / Merge</td>
+<td>分支与合并</td>
+</tr>
+<tr>
+<td>Diff</td>
+<td>对比差异</td>
+</tr>
+</tbody>
+</table>
+<p><strong>右键菜单</strong>：常勾
+Pull、Push、Commit；需要「先看再合」可加 Fetch。</p>
+<hr />
+<h2 id="9-命令行速查">9. 命令行速查</h2>
+<blockquote>
+<p><strong>本章是命令的唯一详细清单</strong>；前文各节只讲概念与流程，需要敲命令时以
+9.1、9.2 为准。</p>
+</blockquote>
+<h3 id="91-新写法与旧写法按-git-版本">9.1 新写法与旧写法（按 Git
+版本）</h3>
+<p>从 <strong>Git 2.23</strong>（2019 年 8 月）起，将原
+<code>git checkout</code> 的部分职责拆为
+<code>git switch</code>（分支）与
+<code>git restore</code>（恢复文件）：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>新写法（推荐）</th>
+<th>旧写法（仍普遍可用）</th>
+<th>自版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>切换到已有分支</td>
+<td><code>git switch &lt;分支&gt;</code></td>
+<td><code>git checkout &lt;分支&gt;</code></td>
+<td><strong>2.23</strong></td>
+</tr>
+<tr>
+<td>新建并切换到分支</td>
+<td><code>git switch -c &lt;新分支&gt;</code></td>
+<td><code>git checkout -b &lt;新分支&gt;</code></td>
+<td><strong>2.23</strong></td>
+</tr>
+<tr>
+<td>丢弃工作区里某文件的修改</td>
+<td><code>git restore &lt;文件&gt;</code></td>
+<td><code>git checkout -- &lt;文件&gt;</code></td>
+<td><strong>2.23</strong></td>
+</tr>
+<tr>
+<td>取消暂存（改动仍留在工作区）</td>
+<td><code>git restore --staged &lt;文件&gt;</code></td>
+<td><code>git reset HEAD &lt;文件&gt;</code></td>
+<td><strong>2.23</strong></td>
+</tr>
+<tr>
+<td>查看当前分支名</td>
+<td><code>git branch --show-current</code></td>
+<td><code>git rev-parse --abbrev-ref HEAD</code></td>
+<td><strong>2.22</strong></td>
+</tr>
+</tbody>
+</table>
+<p>本机版本：<code>git --version</code>。<code>clone</code> /
+<code>merge</code> / <code>pull</code> / <code>push</code>
+无上述新旧之分。Git <strong>2.28+</strong> 新建仓库默认首分支常为
+<code>main</code>；若团队以 <code>develop</code> 为准，可
+<code>git config --global init.defaultBranch develop</code> 或
+<code>git clone -b develop &lt;url&gt;</code>。</p>
+<h3 id="92-常用命令">9.2 常用命令</h3>
+<p>按场景列命令；分支切换的新旧写法见 <a
+href="#91-新写法与旧写法按-git-版本">9.1</a>。</p>
+<div class="git-cli-ref">
+<section class="git-cli-section"><h4 class="git-cli-section-title">配置（首次）</h4><ul class="git-cli-list">
+<li class="git-cli-item">
+<p class="git-cli-desc">设置全局用户名（写入本机配置，显示在每次 commit 的 Author）</p>
+<p class="git-cli-cmd"><code>git config --global user.name &quot;你的名字&quot;</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">设置全局邮箱（建议与 GitHub/GitLab 账号邮箱一致）</p>
+<p class="git-cli-cmd"><code>git config --global user.email &quot;你的邮箱&quot;</code></p>
+</li>
+</ul></section>
+<section class="git-cli-section"><h4 class="git-cli-section-title">克隆</h4><ul class="git-cli-list">
+<li class="git-cli-item">
+<p class="git-cli-desc">下载完整仓库到本机，默认远程名为 origin；克隆完成后，工作区对应远端默认分支（不一定是 develop）</p>
+<p class="git-cli-cmd"><code>git clone &lt;url&gt;</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">克隆完成后就在 develop 分支上（远端须已有该分支）</p>
+<p class="git-cli-cmd"><code>git clone -b develop &lt;url&gt;</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">只拉取 develop 的历史，不下载其他分支引用（体积更小）</p>
+<p class="git-cli-cmd"><code>git clone --single-branch -b develop &lt;url&gt;</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">克隆完成后就在 feature/iot-20260815 分支上</p>
+<p class="git-cli-cmd"><code>git clone -b feature/iot-20260815 &lt;url&gt;</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">进入 clone 生成的项目目录（通常为 URL 路径最后一段目录名）</p>
+<p class="git-cli-cmd"><code>cd &lt;项目目录&gt;</code></p>
+</li>
+</ul></section>
+<section class="git-cli-section"><h4 class="git-cli-section-title">日常</h4><ul class="git-cli-list">
+<li class="git-cli-item">
+<p class="git-cli-desc">查看当前分支、工作区与暂存区有哪些变更</p>
+<p class="git-cli-cmd"><code>git status</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">把当前目录下已跟踪文件的修改及新文件加入暂存区</p>
+<p class="git-cli-cmd"><code>git add .</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">把暂存区内容记录为一次本地 commit（尚未传到远端）</p>
+<p class="git-cli-cmd"><code>git commit -m &quot;说明&quot;</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">从已关联的远端分支拉取更新并合并到当前分支（会改动工作区文件）</p>
+<p class="git-cli-cmd"><code>git pull</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">把当前分支上已 commit、尚未上传的提交推送到远端（需已配置上游，如 origin/develop）</p>
+<p class="git-cli-cmd"><code>git push</code></p>
+</li>
+</ul></section>
+<section class="git-cli-section"><h4 class="git-cli-section-title">分支（切换见 9.1）</h4><ul class="git-cli-list">
+<li class="git-cli-item">
+<p class="git-cli-desc">从当前所在提交新建并切换到 feature/iot-20260815（惯例：先 git switch develop，且没有未提交修改）</p>
+<p class="git-cli-cmd"><span class="git-cli-tag git-cli-tag-new">新 ≥2.23</span> <code>git switch -c feature/iot-20260815</code></p>
+<p class="git-cli-legacy"><span class="git-cli-tag git-cli-tag-old">旧</span><code>git checkout -b feature/iot-20260815</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">把当前分支切换到 develop（若有未提交修改，可能需先 commit 或 stash）</p>
+<p class="git-cli-cmd"><span class="git-cli-tag git-cli-tag-new">新 ≥2.23</span> <code>git switch develop</code></p>
+<p class="git-cli-legacy"><span class="git-cli-tag git-cli-tag-old">旧</span><code>git checkout develop</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">先切换到 develop，再把 feature/iot-20260815 合并进来（执行 merge 时当前分支应是 develop）</p>
+<p class="git-cli-cmd"><code>git merge feature/iot-20260815</code></p>
+</li>
+</ul></section>
+<section class="git-cli-section"><h4 class="git-cli-section-title">查看</h4><ul class="git-cli-list">
+<li class="git-cli-item">
+<p class="git-cli-desc">查看当前分支最近 10 条提交（哈希缩写 + 说明）</p>
+<p class="git-cli-cmd"><code>git log --oneline -10</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">工作区相对暂存区的差异（暂存区为空时，相当于相对最近一次 commit）</p>
+<p class="git-cli-cmd"><code>git diff</code></p>
+</li>
+<li class="git-cli-item">
+<p class="git-cli-desc">查看 remote 名称及 fetch / push 使用的 URL</p>
+<p class="git-cli-cmd"><code>git remote -v</code></p>
+</li>
+</ul></section>
+</div>
+<hr />
+<h2 id="10-冲突与回退">10. 冲突与回退</h2>
+<h3 id="101-合并冲突conflict">10.1 合并冲突（Conflict）</h3>
+<p>两人改同一处，Git 无法自动合并，会标记冲突：</p>
+<pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+你的内容
+=======
+对方内容
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/iot-20260815</code></pre>
+<p>处理：编辑保留正确内容 → 删除标记 → <code>add</code> →
+<code>commit</code>。预防：勤 Pull、小步提交、按模块分工。</p>
+<h3 id="102-暂存修改stash">10.2 暂存修改（Stash）</h3>
+<p>临时切换分支又不想提交半成品：</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch develop</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash pop</span></code></pre></div>
+<p>（<code>switch</code> 旧写法：<code>git checkout develop</code>，见
+9.1。）</p>
+<h3 id="103-撤销谨慎">10.3 撤销（谨慎）</h3>
+<p><code>restore</code> / <code>checkout --</code> /
+<code>reset HEAD</code> 的新旧写法见 <a
+href="#91-新写法与旧写法按-git-版本">9.1</a>。</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>命令（示例）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>未 add 的修改丢弃</td>
+<td><code>git restore &lt;文件&gt;</code> 或
+<code>git checkout -- &lt;文件&gt;</code></td>
+</tr>
+<tr>
+<td>已 add 未 commit（只取消暂存）</td>
+<td><code>git restore --staged &lt;文件&gt;</code> 或
+<code>git reset HEAD &lt;文件&gt;</code></td>
+</tr>
+<tr>
+<td>改最后一次 commit 说明</td>
+<td><code>git commit --amend</code>（未 push 或团队允许）</td>
+</tr>
+<tr>
+<td>回退到某次提交（本地）</td>
+<td><code>git reset --hard &lt;commit&gt;</code>（<strong>会丢未备份的改动</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p>已 Push 的历史勿随意 <code>reset --hard</code> 后再
+<strong>强制推送</strong>；优先用 <strong>revert</strong>
+生成一条「反向提交」来撤销改动。</p>
+<hr />
+<h2 id="11-与-cursor-cloud-automations-的关系">11. 与 Cursor Cloud
+Automations 的关系</h2>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>Git 角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自动化改代码</td>
+<td>云端 clone 远端仓库，在分支上改</td>
+</tr>
+<tr>
+<td>产出</td>
+<td>常通过 PR 挂在 GitHub/GitLab</td>
+</tr>
+<tr>
+<td>你本地</td>
+<td>合并 PR 后在本机 Pull 才会更新</td>
+</tr>
+<tr>
+<td>无仓库自动化</td>
+<td>不涉及 Git</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-最佳实践与避坑">12. 最佳实践与避坑</h2>
+<ol type="1">
+<li>开始改代码前先 <strong>Pull</strong>（§4.3）。</li>
+<li>提交信息可读；不要提交密钥与大文件（用
+<code>.gitignore</code>）。</li>
+<li><strong>保护好 <code>develop</code></strong>：功能做完后通过
+<strong>PR（合并请求）</strong> 合入，由他人审查；合并前尽量让
+<strong>CI（自动跑测试/检查）</strong> 通过。不要对 <code>develop</code>
+做
+<strong>强制推送</strong>（<code>git push --force</code>），否则会覆盖远端已有提交，影响他人。</li>
+<li>功能分支命名清晰（如
+<code>feature/iot-20260815</code>），合并后及时删除远端分支（若团队有此规范）。</li>
+</ol>
+<hr />
+<h2 id="13-术语表">13. 术语表</h2>
+<p>英文术语速查（详细说明见正文各章）。</p>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repository / Repo</td>
+<td>仓库</td>
+</tr>
+<tr>
+<td>Commit</td>
+<td>提交</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td>分支</td>
+</tr>
+<tr>
+<td>Merge / Rebase</td>
+<td>合并 / 变基</td>
+</tr>
+<tr>
+<td>Remote / Origin</td>
+<td>远端 / 默认远端名</td>
+</tr>
+<tr>
+<td>Fetch / Pull / Push</td>
+<td>获取 / 拉取并合并 / 推送</td>
+</tr>
+<tr>
+<td>PR / MR</td>
+<td>合并请求</td>
+</tr>
+<tr>
+<td>Clone / Diff / Conflict / Stash</td>
+<td>克隆 / 差异 / 冲突 / 临时贮藏</td>
+</tr>
+<tr>
+<td>CI</td>
+<td>持续集成</td>
+</tr>
+<tr>
+<td><code>.gitignore</code></td>
+<td>忽略不需入库的文件</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="附录一张图串起来">附录：一张图串起来</h2>
+<pre><code>[远端 GitHub/GitLab]
+        ↑ Push          ↓ Fetch / Pull
+[本地仓库 + 工作区] ←→ Commit / Branch / Merge
+        ↑
+   [PR] ← feature/iot-20260815 推送后创建，合入 develop</code></pre>
+
+      </article>
+    </div>
+  </div>
+</div>
+<footer class="doc-footer">
+  <div class="doc-column">由 git-guide.md 生成 · 关系图为 SVG · 改 md 后请运行 build_git_guide_html.py</div>
+</footer>
+<button type="button" class="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="回到顶部">↑</button>
+</body>
+</html>
