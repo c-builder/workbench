@@ -691,7 +691,7 @@ button { cursor: pointer; }
 /* Flow panel — no top padding: sticky band sits flush so list can't peek above it */
 .flow-panel { flex: 1; overflow: auto; padding: 0 16px 24px; }
 .flow-console {
-  position: sticky; top: 0; z-index: 4;
+  position: sticky; top: 0; z-index: 8;
   margin: 0 -16px 14px;
   padding: 12px 16px;
   background: var(--surface);
@@ -770,9 +770,9 @@ button { cursor: pointer; }
 .flow-search {
   display: block; flex: 1; min-width: 0; margin: 0;
 }
-.flow-query-row .domain-select-wrap { flex-shrink: 0; }
+.flow-query-row .domain-select-wrap { flex-shrink: 0; position: relative; }
 .flow-query-row .domain-select {
-  max-width: 104px; height: 34px;
+  max-width: 112px; height: 34px;
 }
 .flow-meta-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -1394,19 +1394,37 @@ input.val {
   color: var(--muted); font-weight: 600;
 }
 .chip.on em { color: inherit; opacity: 0.7; }
-.domain-select-wrap { flex-shrink: 0; }
+.domain-select-wrap { flex-shrink: 0; position: relative; }
 .domain-select {
   height: 34px; border-radius: 10px;
   border: 1px solid var(--line); background: #fff;
   padding: 0 28px 0 10px; font-size: 12px; color: var(--ink);
-  appearance: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  max-width: 118px; white-space: nowrap;
   background-image: linear-gradient(45deg, transparent 50%, #8a8a87 50%),
     linear-gradient(135deg, #8a8a87 50%, transparent 50%);
   background-position: calc(100% - 14px) 14px, calc(100% - 9px) 14px;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
-  max-width: 118px;
 }
+.domain-select.open {
+  border-color: rgba(10, 89, 247, 0.35);
+  box-shadow: 0 0 0 3px rgba(10, 89, 247, 0.10);
+}
+.domain-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20;
+  min-width: 148px; padding: 6px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14);
+}
+.domain-menu button {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  border: 0; background: transparent; border-radius: 8px;
+  padding: 8px 10px; font-size: 13px; color: var(--ink); text-align: left;
+}
+.domain-menu button:hover { background: var(--paper-2); }
+.domain-menu button.on { background: var(--brand-soft); color: var(--brand-ink); }
+.domain-menu .mode-check { width: 12px; text-align: center; }
 .flow-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   flex-wrap: wrap; padding-top: 14px; margin-bottom: 12px;

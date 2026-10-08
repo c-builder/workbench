@@ -318,6 +318,7 @@ export default function App() {
   const [onboard, setOnboard] = useState(() => localStorage.getItem(ONBOARD_KEY) !== '1')
   const [query, setQuery] = useState('')
   const [domainFilter, setDomainFilter] = useState<'all' | Domain>('all')
+  const [domainMenuOpen, setDomainMenuOpen] = useState(false)
   const [sessionList, setSessionList] = useState<Session[]>(seedSessions)
   const [sessionId, setSessionId] = useState('s1')
   const [railNav, setRailNav] = useState<'assistant' | 'skills' | 'schedule'>('assistant')
@@ -976,6 +977,13 @@ export default function App() {
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [attachMenuOpen])
+
+  useEffect(() => {
+    if (!domainMenuOpen) return
+    const close = () => setDomainMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [domainMenuOpen])
 
   const switchSession = (id: string) => {
     setSessionId(id)
@@ -1819,22 +1827,45 @@ export default function App() {
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
-                    <label className="domain-select-wrap">
-                      <span className="sr-only">业务分类</span>
-                      <select
-                        className="domain-select"
-                        value={domainFilter}
-                        onChange={(e) => setDomainFilter(e.target.value as 'all' | Domain)}
+                    <div className="domain-select-wrap" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className={`domain-select${domainMenuOpen ? ' open' : ''}`}
                         aria-label="业务分类"
+                        aria-haspopup="listbox"
+                        aria-expanded={domainMenuOpen}
+                        onClick={() => setDomainMenuOpen((v) => !v)}
                       >
-                        <option value="all">全部业务</option>
-                        {DOMAINS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        {domainFilter === 'all' ? '全部业务' : domainFilter}
+                      </button>
+                      {domainMenuOpen && (
+                        <div className="domain-menu" role="listbox" aria-label="业务分类">
+                          {(
+                            [
+                              ['all', '全部业务'],
+                              ...DOMAINS.map((d) => [d, d] as const),
+                            ] as const
+                          ).map(([id, label]) => (
+                            <button
+                              key={id}
+                              type="button"
+                              role="option"
+                              aria-selected={domainFilter === id}
+                              className={domainFilter === id ? 'on' : ''}
+                              onClick={() => {
+                                setDomainFilter(id)
+                                setDomainMenuOpen(false)
+                              }}
+                            >
+                              <span className="mode-check" aria-hidden>
+                                {domainFilter === id ? '✓' : ''}
+                              </span>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flow-meta-row">
                     <div
